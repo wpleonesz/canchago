@@ -1,0 +1,38 @@
+paths:
+  /api/rbac/menus:
+    get:
+      summary: Obtener árbol de menús dinámico para el usuario actual
+      tags:
+        - RBAC
+      security:
+        - bearerAuth: []
+      x-code-standards:
+        handlerStyle: "arrow-functions"
+      x-middlewares:
+        - auth
+        - database
+      responses:
+        "200":
+          description: Árbol de menús jerárquico
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MenuItem"
+
+components:
+  schemas:
+    MenuItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        name: { type: string }
+        route: { type: string }
+        icon: { type: string }
+        component: { type: string }
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/MenuItem"

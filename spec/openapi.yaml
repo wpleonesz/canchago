@@ -1,0 +1,22 @@
+openapi: 3.0.3
+info:
+  title: API Core Institucional - Agendamiento de Canchas
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+# Aquí se integran los módulos separados
+paths:
+  /api/auth/login:
+    $ref: "./auth/index.yaml#/paths/~1api~1auth~1login"
+  /api/user:
+    $ref: "./user/index.yaml#/paths/~1api~1user"
+  /api/rbac/menus:
+    $ref: "./rbac/index.yaml#/paths/~1api~1rbac~1menus"

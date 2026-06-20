@@ -1,0 +1,59 @@
+paths:
+  /api/auth/login:
+    post:
+      summary: Iniciar sesión en el sistema
+      tags:
+        - Auth
+      x-code-standards:
+        handlerStyle: "arrow-functions"
+      x-middlewares:
+        - parser
+        - database
+      x-internal-libs:
+        - hash/bcrypt
+        - tokens/jwt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, deviceInfo]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                deviceInfo:
+                  type: object
+                  properties:
+                    deviceId: { type: string }
+                    platform: { type: string }
+      responses:
+        "200":
+          description: Autenticación exitosa
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: { type: string }
+                  user:
+                    $ref: "#/components/schemas/UserAuthResponse"
+        "401":
+          description: Credenciales inválidas o cuenta bloqueada
+
+components:
+  schemas:
+    UserAuthResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status:
+          {
+            type: string,
+            enum: [PENDING, ACTIVE, BLOCKED, SUSPENDED, INACTIVE],
+          }
+        mustChangePassword: { type: boolean }
