@@ -804,6 +804,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@prisma/client-runtime-utils@npm:7.8.0":
+  version: 7.8.0
+  resolution: "@prisma/client-runtime-utils@npm:7.8.0"
+  checksum: d79f20c1c1071da6ef494d3d78e6943a7c95b57f376f79ee6854571087131b7ca399ad86693df540623da019bad2923cd8eae573b232c48bc23cd722c70ff423
+  languageName: node
+  linkType: hard
+
+"@prisma/client@npm:^7.8.0":
+  version: 7.8.0
+  resolution: "@prisma/client@npm:7.8.0"
+  dependencies:
+    "@prisma/client-runtime-utils": 7.8.0
+  peerDependencies:
+    prisma: "*"
+    typescript: ">=5.4.0"
+  peerDependenciesMeta:
+    prisma:
+      optional: true
+    typescript:
+      optional: true
+  checksum: 5d9c92b90292428f40196d9f620e76060b01e55b10299339186f3e070e9cd1f1223733a79dc6deaaef0c210c4cf95ef7e033ab5ed82c0ec8eb6afc651b8e8049
+  languageName: node
+  linkType: hard
+
 "@prisma/config@npm:7.8.0":
   version: 7.8.0
   resolution: "@prisma/config@npm:7.8.0"
@@ -1956,6 +1980,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "canchago@workspace:."
   dependencies:
+    "@prisma/client": ^7.8.0
     "@tailwindcss/postcss": ^4
     "@types/node": ^20
     "@types/react": ^19
