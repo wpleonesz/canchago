@@ -1,0 +1,20 @@
+# Archivos y carpetas que Prettier NO debe formatear.
+
+# Dependencias instaladas.
+node_modules/
+
+# Salida de compilación de Next.js.
+.next/
+out/
+build/
+
+# Código generado por Prisma (no se edita a mano).
+generated/
+
+# Tipos autogenerados por Next.js.
+next-env.d.ts
+
+# Archivos de bloqueo y gestor de paquetes.
+yarn.lock
+.yarn/
+.pnp.*
