@@ -7,8 +7,8 @@ const config = {
 	useTabs: true,
 	// Ancho visual de cada tabulación = 2 columnas (afecta cómo se ve, no el carácter).
 	tabWidth: 2,
-	// Usa comillas dobles ( " ) para los strings.
-	// Usar comillas simples ( ' ) puede causar problemas con JSX y HTML.
+	// Usa comillas simples ( ' ) para los strings de JS/TS.
+	// (En atributos JSX Prettier sigue usando dobles automáticamente, según el estándar.)
 	singleQuote: true,
 	// Agrega coma final en listas/objetos multilínea (mejora los diffs de git).
 	trailingComma: "all",
