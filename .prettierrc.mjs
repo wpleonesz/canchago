@@ -11,15 +11,15 @@ const config = {
 	// (En atributos JSX Prettier sigue usando dobles automáticamente, según el estándar.)
 	singleQuote: true,
 	// Agrega coma final en listas/objetos multilínea (mejora los diffs de git).
-	trailingComma: "all",
+	trailingComma: 'all',
 	// Corta la línea cuando supera los 100 caracteres.
 	printWidth: 100,
 	// Pone espacios dentro de las llaves: { foo } en lugar de {foo}.
 	bracketSpacing: true,
 	// Elimina los paréntesis cuando la función flecha tiene un solo argumento: x => x.
-	arrowParens: "avoid",
+	arrowParens: 'avoid',
 	// Normaliza los saltos de línea a estilo LF (Unix), evita conflictos entre SO.
-	endOfLine: "lf",
+	endOfLine: 'lf',
 };
 
 // Exporta la configuración para que Prettier (y ESLint) la lean.

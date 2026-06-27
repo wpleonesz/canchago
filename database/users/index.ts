@@ -1,11 +1,21 @@
-import { prisma } from '@/database/client';
+import type { Prisma } from '@/generated/prisma/client';
+import { Prisma as PrismaClient } from '@/generated/prisma/client';
 
+import { prisma } from '@/database/client';
+import { ConflictError } from '@/errors/conflict-error';
 import { env } from '@/lib/config/env';
+import { normalizePagination } from '@/helper/pagination';
 import type { SessionPermission, SessionRole, SessionUser } from '@/lib/session';
+import type { CreateUserBody, UpdateUserBody, UserQueryParams } from '@/validations/users';
 
 type OAuthSyncUser = {
 	user: SessionUser;
 };
+
+const isPrismaUniqueConstraintError = (
+	error: unknown,
+): error is PrismaClient.PrismaClientKnownRequestError =>
+	error instanceof PrismaClient.PrismaClientKnownRequestError && error.code === 'P2002';
 
 const splitDisplayName = (displayName: string): { firstName: string; lastName: string } => {
 	const parts = displayName.trim().split(/\s+/u).filter(Boolean);
@@ -164,3 +174,109 @@ export const findOrSyncByOAuth = async (
 		},
 	};
 };
+
+const selectUserFields = {
+	id: true,
+	email: true,
+	status: true,
+	createdAt: true,
+	updatedAt: true,
+	profile: true,
+	userRoles: {
+		include: {
+			role: true,
+		},
+	},
+};
+
+export const getAll = async (filters: UserQueryParams) => {
+	const { skip, take, meta } = normalizePagination(filters);
+
+	const where: Prisma.UserWhereInput = {
+		status: filters.active ? 'ACTIVE' : undefined,
+	};
+
+	if (filters.search) {
+		where.OR = [
+			{ email: { contains: filters.search, mode: 'insensitive' } },
+			{ profile: { firstName: { contains: filters.search, mode: 'insensitive' } } },
+			{ profile: { lastName: { contains: filters.search, mode: 'insensitive' } } },
+		];
+	}
+
+	const [users, total] = await Promise.all([
+		prisma.user.findMany({
+			where,
+			select: selectUserFields,
+			skip,
+			take,
+			orderBy: filters.orderBy
+				? { [filters.orderBy]: filters.order ?? 'asc' }
+				: { createdAt: 'desc' },
+		}),
+		prisma.user.count({ where }),
+	]);
+
+	return { users, meta: meta(total) };
+};
+
+export const create = async (data: CreateUserBody) => {
+	try {
+		const user = await prisma.user.create({
+			data: {
+				email: data.email,
+				username: data.email.split('@')[0] || data.email,
+				status: 'ACTIVE',
+				profile: {
+					create: {
+						firstName: data.firstName,
+						lastName: data.lastName,
+					},
+				},
+			},
+			select: selectUserFields,
+		});
+
+		return user;
+	} catch (error) {
+		if (isPrismaUniqueConstraintError(error)) {
+			throw new ConflictError('Email already exists');
+		}
+
+		throw error;
+	}
+};
+
+export const record = (userId: string) => ({
+	getUnique: async () =>
+		prisma.user.findUnique({
+			where: { id: userId },
+			select: selectUserFields,
+		}),
+	update: async (data: UpdateUserBody) =>
+		prisma.user.update({
+			where: { id: userId },
+			data: {
+				...(data.email && { email: data.email }),
+				...(data.firstName || data.lastName
+					? {
+							profile: {
+								update: {
+									...(data.firstName && { firstName: data.firstName }),
+									...(data.lastName && { lastName: data.lastName }),
+								},
+							},
+						}
+					: {}),
+			},
+			select: selectUserFields,
+		}),
+	remove: async () =>
+		prisma.user.update({
+			where: { id: userId },
+			data: {
+				status: 'INACTIVE',
+			},
+			select: selectUserFields,
+		}),
+});
