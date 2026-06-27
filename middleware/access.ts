@@ -3,7 +3,7 @@ import type { NextHandler } from 'next-connect';
 
 import { AuthorizationError } from '@/errors/auth';
 
-export const requirePermissions =
+export const access =
 	(...requiredPermissions: string[]) =>
 	async (req: NextApiRequest, _res: NextApiResponse, next: NextHandler): Promise<void> => {
 		const permissions = req.user?.permissions ?? [];

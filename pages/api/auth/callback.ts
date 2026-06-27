@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
 import { AuthenticationError, ValidationError } from '@/errors/auth';
+import { routerOptions } from '@/pages/api/_router';
 import { env } from '@/lib/config/env';
 import { exchangeCode, verifyIdToken } from '@/lib/oauth';
 import {
@@ -76,27 +77,4 @@ router.get(async (req, res) => {
 	res.redirect(302, env.OAUTH_SUCCESS_REDIRECT_URL);
 });
 
-export default router.handler({
-	onError: (error, _req, res) => {
-		const statusCode =
-			error instanceof ValidationError || error instanceof AuthenticationError
-				? error.statusCode
-				: 500;
-		const message = error instanceof Error ? error.message : 'Unable to complete login flow';
-
-		res.status(statusCode).json({
-			error: {
-				code:
-					statusCode === 401
-						? 'UNAUTHORIZED'
-						: statusCode === 400
-							? 'VALIDATION_ERROR'
-							: 'INTERNAL_SERVER_ERROR',
-				message,
-			},
-		});
-	},
-	onNoMatch: (_req, res) => {
-		res.status(405).end();
-	},
-});
+export default router.handler(routerOptions);

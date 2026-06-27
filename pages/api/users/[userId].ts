@@ -1,162 +1,50 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
-import { authMiddleware } from '@/middleware/auth';
-import { requirePermissions } from '@/middleware/access';
-import * as userService from '@/services/users';
+import { auth } from '@/middleware/auth';
+import { access } from '@/middleware/access';
+import { routerOptions } from '@/pages/api/_router';
+import { userService } from '@/services/users';
 import { userParamsSchema, updateUserSchema } from '@/validations/users';
-import { NotFoundError } from '@/errors/not-found-error';
-import { ConflictError } from '@/errors/conflict-error';
+import { ValidationError } from '@/errors/auth';
 
-const router = createRouter<NextApiRequest, NextApiResponse>();
+const handler = createRouter<NextApiRequest, NextApiResponse>();
 
-router
-	.use(authMiddleware)
-	.get(requirePermissions('users.read'), async (req, res) => {
-		const parsedParams = userParamsSchema.safeParse(req.query);
+handler
+	.use(auth)
+	.get(access('users.read'), async (req, res): Promise<void> => {
+		const parsed = userParamsSchema.safeParse(req.query);
 
-		if (!parsedParams.success) {
-			return res.status(400).json({
-				error: {
-					code: 'VALIDATION_ERROR',
-					message: 'Invalid parameters',
-					details: parsedParams.error.flatten(),
-				},
-			});
+		if (!parsed.success) {
+			throw new ValidationError('Parámetros de ruta inválidos.');
 		}
 
-		try {
-			const user = await userService.getById(parsedParams.data.userId);
+		const user = await userService.getById(parsed.data.userId);
 
-			res.status(200).json({
-				data: user,
-			});
-		} catch (error) {
-			if (error instanceof NotFoundError) {
-				return res.status(404).json({
-					error: {
-						code: 'NOT_FOUND',
-						message: error.message,
-					},
-				});
-			}
-
-			throw error;
-		}
+		res.status(200).json({ data: user });
 	})
-	.patch(requirePermissions('users.update'), async (req, res) => {
+	.patch(access('users.update'), async (req, res): Promise<void> => {
 		const parsedParams = userParamsSchema.safeParse(req.query);
 		const parsedBody = updateUserSchema.safeParse(req.body);
 
-		if (!parsedParams.success) {
-			return res.status(400).json({
-				error: {
-					code: 'VALIDATION_ERROR',
-					message: 'Invalid parameters',
-					details: parsedParams.error.flatten(),
-				},
-			});
+		if (!parsedParams.success || !parsedBody.success) {
+			throw new ValidationError('Los datos enviados no son válidos.');
 		}
 
-		if (!parsedBody.success) {
-			return res.status(400).json({
-				error: {
-					code: 'VALIDATION_ERROR',
-					message: 'Invalid request body',
-					details: parsedBody.error.flatten(),
-				},
-			});
-		}
+		const user = await userService.update(parsedParams.data.userId, parsedBody.data);
 
-		try {
-			const user = await userService.update(parsedParams.data.userId, parsedBody.data);
-
-			res.status(200).json({
-				data: user,
-			});
-		} catch (error) {
-			if (error instanceof NotFoundError) {
-				return res.status(404).json({
-					error: {
-						code: 'NOT_FOUND',
-						message: error.message,
-					},
-				});
-			}
-
-			if (error instanceof ConflictError) {
-				return res.status(409).json({
-					error: {
-						code: 'CONFLICT',
-						message: error.message,
-					},
-				});
-			}
-
-			throw error;
-		}
+		res.status(200).json({ data: user });
 	})
-	.delete(requirePermissions('users.delete'), async (req, res) => {
-		const parsedParams = userParamsSchema.safeParse(req.query);
+	.delete(access('users.delete'), async (req, res): Promise<void> => {
+		const parsed = userParamsSchema.safeParse(req.query);
 
-		if (!parsedParams.success) {
-			return res.status(400).json({
-				error: {
-					code: 'VALIDATION_ERROR',
-					message: 'Invalid parameters',
-					details: parsedParams.error.flatten(),
-				},
-			});
+		if (!parsed.success) {
+			throw new ValidationError('Parámetros de ruta inválidos.');
 		}
 
-		try {
-			await userService.remove(parsedParams.data.userId);
+		await userService.remove(parsed.data.userId);
 
-			res.status(204).end();
-		} catch (error) {
-			if (error instanceof NotFoundError) {
-				return res.status(404).json({
-					error: {
-						code: 'NOT_FOUND',
-						message: error.message,
-					},
-				});
-			}
-
-			throw error;
-		}
+		res.status(204).end();
 	});
 
-export default router.handler({
-	onError: (error, _req, res) => {
-		const message = error instanceof Error ? error.message : 'Internal server error';
-
-		if (message.includes('Missing permissions')) {
-			return res.status(403).json({
-				error: {
-					code: 'FORBIDDEN',
-					message: 'Insufficient permissions',
-				},
-			});
-		}
-
-		if (message.includes('Missing session cookie') || message.includes('Unauthorized')) {
-			return res.status(401).json({
-				error: {
-					code: 'UNAUTHORIZED',
-					message,
-				},
-			});
-		}
-
-		res.status(500).json({
-			error: {
-				code: 'INTERNAL_SERVER_ERROR',
-				message,
-			},
-		});
-	},
-	onNoMatch: (_req, res) => {
-		res.status(405).end();
-	},
-});
+export default handler.handler(routerOptions);

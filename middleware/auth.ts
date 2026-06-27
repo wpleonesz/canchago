@@ -5,7 +5,7 @@ import { AuthenticationError } from '@/errors/auth';
 import { env } from '@/lib/config/env';
 import { decrypt } from '@/lib/session';
 
-export const authMiddleware = async (
+export const auth = async (
 	req: NextApiRequest,
 	_res: NextApiResponse,
 	next: NextHandler,

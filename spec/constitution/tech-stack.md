@@ -515,88 +515,212 @@ pages/api/
 
 Las API Routes deben:
 
-- Configurar la cadena de `next-connect`.
-
-- Validar el método HTTP.
-
-- Ejecutar los middlewares requeridos.
-
-- Validar entradas con Zod.
-
-- Invocar un servicio.
-
-- Retornar una respuesta estandarizada.
-
-- Delegar el manejo de errores al handler global.
+- Configurar la cadena de `next-connect` con los middlewares necesarios.
+- Aplicar `auth` → `api` → `access('<scope>')` → `database(<ResourceData>)`.
+- Aplicar `parser.escape(ESCAPE)` antes de cualquier operación de escritura con payload.
+- Responder con `api.success`, `api.successOne` o `api.successMany` dentro del callback de `request.do`.
+- Usar soft-delete mediante `{ active: false }` en lugar de eliminar el registro.
+- Delegar el manejo de errores al handler global de `next-connect`.
 
 Las API Routes no deben:
 
-- Ejecutar consultas Prisma.
-
+- Ejecutar consultas Prisma directamente.
 - Contener reglas del negocio.
-
 - Instanciar clientes externos.
-
 - Implementar lógica extensa.
-
 - Exponer detalles internos.
-
 - Retornar información sensible.
 
-### Convención de `next-connect`
+### Plantillas de API Routes
 
-Patrón recomendado:
+El tipo `request.do` debe estar declarado en `types/` mediante extensión de `NextApiRequest`. La capa `database(<ResourceData>)` inyecta el cliente de base de datos en la solicitud. `ESCAPE` lista los campos que no deben pasar por sanitización y se exporta desde la capa `@/database/<modulo>`.
+
+#### `pages/api/<recurso>/index.ts`
 
 ```ts
 import { createRouter } from 'next-connect';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-import { authenticated } from '@/middleware/auth';
-import { authorized } from '@/middleware/access';
+import { auth } from '@/middleware/auth';
 import { api } from '@/middleware/api';
+import { access } from '@/middleware/access';
+import { database } from '@/middleware/database';
 import { parser } from '@/middleware/parser';
-import { rateLimit } from '@/middleware/rate-limit';
-import { userService } from '@/services/users';
-import { createUserSchema } from '@/validations/users';
+import ResourceData, { ESCAPE } from '@/database/<modulo>/resource';
 
-const router = createRouter<NextApiRequest, NextApiResponse>();
+const handler = createRouter<NextApiRequest, NextApiResponse>();
 
-router
-	.use(rateLimit())
-	.use(api())
-	.use(authenticated())
-	.get(authorized(['users.read']), async (request, response): Promise<void> => {
-		const result = await userService.getAll(request.query);
+handler
+	.use(auth)
+	.use(api)
+	.use(access('resource'))
+	.use(database(ResourceData))
+	.get((request) => {
+		request.do('read', async (api, prisma) => {
+			const query = prisma.resource
+				.where({ ...api.where, ...api.filter })
+				.orderBy(api.orderBy)
+				.take(api.take)
+				.skip(api.skip)
+				.cursor(api.cursor);
 
-		response.api.successMany(result.data, result.meta);
-	})
-	.post(
-		authorized(['users.create']),
-		parser({
-			body: createUserSchema,
-		}),
-		async (request, response): Promise<void> => {
-			const user = await userService.create(request.body);
+			query.setCount(api.count);
 
-			response.api.created(user);
-		},
-	);
-
-export default router.handler({
-	onError: (error, request, response): void => {
-		response.api.error(error);
-	},
-
-	onNoMatch: (request, response): void => {
-		response.status(405).json({
-			error: {
-				code: 'METHOD_NOT_ALLOWED',
-				message: 'Método HTTP no permitido.',
-			},
+			return api.successMany(await query.getAll());
 		});
+	})
+	.use(parser.escape(ESCAPE))
+	.post((request) => {
+		request.do('create', async (api, prisma) => {
+			return api.success(await prisma.resource.create(request.body));
+		});
+	});
+
+export default handler.handler({
+	onError: (error, _req, response) => {
+		response.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Error interno.' } });
+	},
+	onNoMatch: (_req, response) => {
+		response.status(405).json({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Método no permitido.' } });
 	},
 });
 ```
+
+#### `pages/api/<recurso>/[resourceId].ts`
+
+Usar un nombre descriptivo para el parámetro: `[userId].ts`, `[roleId].ts`, `[venueId].ts`. No usar `[id].ts`.
+
+```ts
+import { createRouter } from 'next-connect';
+import type { NextApiRequest, NextApiResponse } from 'next';
+
+import { auth } from '@/middleware/auth';
+import { api } from '@/middleware/api';
+import { access } from '@/middleware/access';
+import { database } from '@/middleware/database';
+import { parser } from '@/middleware/parser';
+import ResourceData, { ESCAPE } from '@/database/<modulo>/resource';
+
+const handler = createRouter<NextApiRequest, NextApiResponse>();
+
+handler
+	.use(auth)
+	.use(api)
+	.use(access('resource'))
+	.use(database(ResourceData))
+	.get((request) => {
+		request.do('read', async (api, prisma) => {
+			return api.successOne(
+				await prisma.resource.record(request.query.resourceId).getUnique(),
+			);
+		});
+	})
+	.delete((request) => {
+		request.do('remove', async (api, prisma) => {
+			return api.success(
+				await prisma.resource.record(request.query.resourceId).update({ active: false }),
+			);
+		});
+	})
+	.use(parser.escape(ESCAPE))
+	.put((request) => {
+		request.do('write', async (api, prisma) => {
+			return api.success(
+				await prisma.resource.record(request.query.resourceId).update(request.body),
+			);
+		});
+	});
+
+export default handler.handler({
+	onError: (_err, _req, response) => {
+		response.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Error interno.' } });
+	},
+	onNoMatch: (_req, response) => {
+		response.status(405).json({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Método no permitido.' } });
+	},
+});
+```
+
+#### `pages/api/<recurso>/[...slug].ts`
+
+Usar únicamente para subrecursos o acciones especiales cuya profundidad de path es variable. Ejemplos:
+
+- `GET /api/role/1/access`
+- `GET /api/attendance/123/states`
+- `POST /api/resource/10/action`
+
+No usar `[...slug].ts` para reemplazar rutas CRUD que ya pertenecen a `index.ts` o `[resourceId].ts`.
+
+```ts
+import { createRouter } from 'next-connect';
+import type { NextApiRequest, NextApiResponse } from 'next';
+
+import { auth } from '@/middleware/auth';
+import { api } from '@/middleware/api';
+import { access } from '@/middleware/access';
+import { database } from '@/middleware/database';
+import { parser } from '@/middleware/parser';
+import ResourceData, { ESCAPE } from '@/database/<modulo>/resource';
+
+const getSlugParams = (request: NextApiRequest) => {
+	const [id, action] = (request.query.slug as string[]) ?? [];
+
+	return { id, action };
+};
+
+const handler = createRouter<NextApiRequest, NextApiResponse>();
+
+handler
+	.use(auth)
+	.use(api)
+	.use(access('resource'))
+	.use(database(ResourceData))
+	.get((request) => {
+		request.do('read', async (api, prisma) => {
+			const { id, action } = getSlugParams(request);
+
+			if (!id || !action) return api.successMany([]);
+
+			if (action === 'children') {
+				return api.successMany(
+					await prisma.resource.where({ parentId: id }).getAll(),
+				);
+			}
+
+			return api.successMany([]);
+		});
+	})
+	.use(parser.escape(ESCAPE))
+	.post((request) => {
+		request.do('create', async (api, prisma) => {
+			const { id, action } = getSlugParams(request);
+
+			if (!id || action !== 'action') return api.unauthorized();
+
+			return api.success(
+				await prisma.resource.record(id).update(request.body),
+			);
+		});
+	});
+
+export default handler.handler({
+	onError: (_err, _req, response) => {
+		response.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Error interno.' } });
+	},
+	onNoMatch: (_req, response) => {
+		response.status(405).json({ error: { code: 'METHOD_NOT_ALLOWED', message: 'Método no permitido.' } });
+	},
+});
+```
+
+### Checklist de API Route
+
+- Confirmar que existe la capa `@/database/<modulo>/resource`.
+- Confirmar que la capa exporta `ESCAPE`.
+- Confirmar el scope correcto para `access('<scope>')`.
+- Validar payload antes de escribir datos.
+- Usar soft-delete con `{ active: false }`.
+- Probar listado, creación, lectura individual, edición, eliminación y permisos.
 
 ### Convención de acceso a datos
 

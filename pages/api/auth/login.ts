@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
 import { ValidationError } from '@/errors/auth';
+import { routerOptions } from '@/pages/api/_router';
 import { env } from '@/lib/config/env';
 import { buildCookieHeader, appendSetCookie } from '@/lib/http/cookies';
 import { buildAuthorizationUrl } from '@/lib/oauth';
@@ -35,18 +36,4 @@ router.get(async (_req, res) => {
 	res.redirect(302, buildAuthorizationUrl(state, codeChallenge, nonce));
 });
 
-export default router.handler({
-	onError: (error, _req, res) => {
-		const message = error instanceof ValidationError ? error.message : 'Unable to start login flow';
-
-		res.status(error instanceof ValidationError ? error.statusCode : 500).json({
-			error: {
-				code: error instanceof ValidationError ? 'VALIDATION_ERROR' : 'INTERNAL_SERVER_ERROR',
-				message,
-			},
-		});
-	},
-	onNoMatch: (_req, res) => {
-		res.status(405).end();
-	},
-});
+export default router.handler(routerOptions);
