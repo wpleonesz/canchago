@@ -8,12 +8,11 @@ _Features completadas, en orden de implementación._
 
 1. **000 · Modelado de Base de Datos Core** — Creación del esquema Prisma multi-tenant (organizaciones, usuarios, RBAC) como base fundacional.
 2. **001 · Pipeline Spec-Driven (SDD)** — Configuración del middleware `parser.js` para validación automática contra contratos OpenAPI.
+3. **002 · Autenticación Core (Login)** — Flujo OAuth 2.0 Authorization Code + PKCE con sesiones cifradas en cookies HttpOnly mediante `@hapi/iron`, callback, refresh, logout y documentación OpenAPI completa.
 
 ## Siguiente 🔜
 
 _Lo próximo a abordar. Idealmente una sola feature "en curso" a la vez._
-
-3. **002 · Autenticación Core (Login)** — Implementación de sesión JWT en cookies HttpOnly, validación bcrypt y registro de dispositivos.
 
 ## Backlog / ideas 💡
 

@@ -2,3 +2,5 @@
 // Importa aquí cada archivo de documentación por módulo:
 // export * from './users';
 // export * from './auth';
+
+export * from './auth';
