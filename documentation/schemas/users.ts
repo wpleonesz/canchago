@@ -1,6 +1,16 @@
 import { z } from 'zod';
 
 import { registry } from '@/documentation/registry';
+
+const EXAMPLE_UUID = '123e4567-e89b-12d3-a456-426614174000';
+
+const userIdParam = {
+	name: 'userId',
+	in: 'path' as const,
+	required: true,
+	schema: { type: 'string' as const, format: 'uuid' },
+	example: EXAMPLE_UUID,
+};
 import { ErrorResponseSchema, PaginationMetaSchema } from '@/documentation/responses/common';
 
 const RoleSchema = z.object({
@@ -149,15 +159,12 @@ registry.registerPath({
 		required: true,
 		content: {
 			'application/json': {
-				schema: {
-					type: 'object',
-					required: ['email', 'firstName', 'lastName', 'organizationId'],
-					properties: {
-						email: { type: 'string', format: 'email' },
-						firstName: { type: 'string' },
-						lastName: { type: 'string' },
-						organizationId: { type: 'string', format: 'uuid' },
-					},
+				schema: CreateUserBodySchema,
+				example: {
+					email: 'juan.perez@ejemplo.com',
+					firstName: 'Juan',
+					lastName: 'Pérez',
+					organizationId: '123e4567-e89b-12d3-a456-426614174000',
 				},
 			},
 		},
@@ -183,14 +190,7 @@ registry.registerPath({
 	tags: ['Users'],
 	security: [{ cookieAuth: [] }],
 	description: 'Obtiene un usuario por ID. Requiere permiso `users.read`.',
-	parameters: [
-		{
-			name: 'userId',
-			in: 'path',
-			required: true,
-			schema: { type: 'string', format: 'uuid' },
-		},
-	],
+	parameters: [userIdParam],
 	responses: {
 		200: {
 			description: 'Usuario encontrado',
@@ -212,26 +212,15 @@ registry.registerPath({
 	tags: ['Users'],
 	security: [{ cookieAuth: [] }],
 	description: 'Actualiza un usuario. Requiere permiso `users.update`.',
-	parameters: [
-		{
-			name: 'userId',
-			in: 'path',
-			required: true,
-			schema: { type: 'string', format: 'uuid' },
-		},
-	],
+	parameters: [userIdParam],
 	requestBody: {
 		required: false,
 		content: {
 			'application/json': {
-				schema: {
-					type: 'object',
-					properties: {
-						email: { type: 'string', format: 'email' },
-						firstName: { type: 'string' },
-						lastName: { type: 'string' },
-						organizationId: { type: 'string', format: 'uuid' },
-					},
+				schema: UpdateUserBodySchema,
+				example: {
+					firstName: 'Juan Carlos',
+					lastName: 'Pérez García',
 				},
 			},
 		},
@@ -257,14 +246,7 @@ registry.registerPath({
 	tags: ['Users'],
 	security: [{ cookieAuth: [] }],
 	description: 'Elimina (soft delete) un usuario. Requiere permiso `users.delete`.',
-	parameters: [
-		{
-			name: 'userId',
-			in: 'path',
-			required: true,
-			schema: { type: 'string', format: 'uuid' },
-		},
-	],
+	parameters: [userIdParam],
 	responses: {
 		204: {
 			description: 'Usuario eliminado',

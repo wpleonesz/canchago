@@ -51,49 +51,51 @@ const errorResponses = {
 
 const loginDescription = `Inicia el flujo OAuth 2.0 Authorization Code + PKCE.
 
-Cómo probarlo:
+**Cómo probar desde esta documentación:**
 
-1. Abre la ruta en el navegador o con curl: curl -i http://localhost:3000/api/auth/login
-2. Verifica que la respuesta sea un 302 con Location apuntando al proveedor OAuth.
-3. Confirma que la respuesta incluya una cookie temporal HttpOnly con state, code_verifier y nonce.
-`;
+1. Haz clic en **Execute** — la respuesta será un \`302\` que el navegador seguirá automáticamente.
+2. Completa el login en el proveedor OAuth.
+3. Al volver, la cookie de sesión quedará activa en el navegador.
+4. Todos los endpoints protegidos (**🔒**) ya podrán ejecutarse desde aquí sin configuración adicional.
+
+> La cookie es \`HttpOnly\` y el navegador la envía automáticamente gracias a \`withCredentials: true\`.`;
 
 const callbackDescription = `Procesa el código OAuth devuelto por el proveedor y crea la sesión interna.
 
-Cómo probarlo:
+Este endpoint **no se llama directamente** — es la URL de retorno del proveedor OAuth después de que el usuario autoriza el acceso.
 
-1. Completa primero /api/auth/login para generar la cookie temporal.
-2. Repite la llamada simulando el callback del proveedor con curl -i "http://localhost:3000/api/auth/callback?code=AUTH_CODE&state=STATE_VALUE" --cookie "canchago_oauth_state=COOKIE_VALUE".
-3. Verifica que la respuesta sea un 302 hacia OAUTH_SUCCESS_REDIRECT_URL y que se establezca la cookie de sesión.
-`;
+El flujo completo es:
+1. \`GET /auth/login\` → redirige al proveedor OAuth.
+2. El proveedor redirige a \`GET /auth/callback?code=...&state=...\`.
+3. Este endpoint valida el código, crea la sesión y redirige al cliente.`;
 
-const sessionDescription = `Devuelve el usuario autenticado asociado a la cookie de sesión.
+const sessionDescription = `Devuelve el usuario autenticado asociado a la cookie de sesión activa.
 
-Cómo probarlo:
+**Cómo probar desde esta documentación:**
 
-1. Copia la cookie canchago_session generada por el callback.
-2. Invoca la ruta con esa cookie usando curl -i http://localhost:3000/api/auth/session --cookie "canchago_session=SESSION_COOKIE_VALUE".
-3. La respuesta debe ser 200 con data.id, data.email, data.name, data.roles y data.permissions.
-`;
+1. Asegúrate de haber iniciado sesión a través de \`GET /auth/login\`.
+2. Haz clic en **Execute** — la cookie se enviará automáticamente.
+3. La respuesta incluye \`id\`, \`email\`, \`name\`, \`roles\` y \`permissions\`.`;
 
-const refreshDescription = `Renueva la sesión cuando el access token está próximo a expirar.
+const refreshDescription = `Renueva el access token cuando está próximo a expirar.
 
-Cómo probarlo:
+**Comportamiento:**
+- Si el token expira en menos de 5 minutos → renueva y devuelve \`204\` con cookie actualizada.
+- Si el token sigue vigente → devuelve \`204\` sin cambios.
 
-1. Usa una cookie de sesión válida.
-2. Lanza la renovación con curl -i -X POST http://localhost:3000/api/auth/refresh --cookie "canchago_session=SESSION_COOKIE_VALUE".
-3. Si el token está cerca de expirar, la respuesta debe incluir una cookie actualizada y terminar en 204.
-4. Si todavía no hace falta renovar, la respuesta también debe ser 204 sin cambios visibles.
-`;
+**Cómo probar desde esta documentación:**
+
+1. Asegúrate de tener sesión activa.
+2. Haz clic en **Execute** — la cookie se enviará automáticamente.`;
 
 const logoutDescription = `Cierra la sesión y elimina la cookie interna.
 
-Cómo probarlo:
+**Cómo probar desde esta documentación:**
 
-1. Usa una cookie de sesión válida.
-2. Ejecuta el cierre de sesión con curl -i -X POST http://localhost:3000/api/auth/logout --cookie "canchago_session=SESSION_COOKIE_VALUE".
-3. La respuesta debe ser 204 y el navegador debe eliminar la cookie de sesión.
-`;
+1. Asegúrate de tener sesión activa.
+2. Haz clic en **Execute**.
+3. La respuesta será \`204\` y la cookie de sesión quedará eliminada.
+4. Los endpoints protegidos comenzarán a devolver \`401\` hasta que vuelvas a hacer login.`;
 
 registry.registerPath({
 	method: 'get',

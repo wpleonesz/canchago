@@ -7,6 +7,10 @@ const html = `<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Canchago API Docs</title>
     <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css" />
+    <style>
+      /* Oculta el campo de URL del spec para evitar confusión */
+      .swagger-ui .topbar { display: none; }
+    </style>
   </head>
   <body>
     <div id="swagger-ui"></div>
@@ -19,6 +23,14 @@ const html = `<!DOCTYPE html>
         layout: 'BaseLayout',
         docExpansion: 'list',
         defaultModelsExpandDepth: -1,
+        /* Envía cookies de sesión automáticamente en cada llamada */
+        withCredentials: true,
+        /* Mantiene el estado de "Authorize" al recargar */
+        persistAuthorization: true,
+        /* Muestra la duración de cada respuesta */
+        displayRequestDuration: true,
+        /* Activa el "Try it out" en todos los endpoints por defecto */
+        tryItOutEnabled: true,
       });
     </script>
   </body>
