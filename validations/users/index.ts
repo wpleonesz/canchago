@@ -1,30 +1,42 @@
 import { z } from 'zod';
+import { VALIDATION_MESSAGES } from '../schemas';
 
 const ALLOWED_ORDER_BY = ['name', 'email', 'createdAt'] as const;
 const ALLOWED_ORDER = ['asc', 'desc'] as const;
 
 export const createUserSchema = z.object({
-	email: z.string().email('Invalid email format'),
-	firstName: z.string().min(1, 'First name is required').max(100),
-	lastName: z.string().min(1, 'Last name is required').max(100),
-	organizationId: z.string().uuid('Invalid organization ID'),
-	roleIds: z.array(z.string().uuid('Invalid role ID')).optional(),
+	email: z.string().email(VALIDATION_MESSAGES.EMAIL),
+	firstName: z
+		.string()
+		.min(1, VALIDATION_MESSAGES.REQUIRED)
+		.max(100, VALIDATION_MESSAGES.MAX_LENGTH(100)),
+	lastName: z
+		.string()
+		.min(1, VALIDATION_MESSAGES.REQUIRED)
+		.max(100, VALIDATION_MESSAGES.MAX_LENGTH(100)),
+	organizationId: z.string().uuid(VALIDATION_MESSAGES.UUID),
+	roleIds: z.array(z.string().uuid(VALIDATION_MESSAGES.UUID)).optional(),
 });
 
 export const updateUserSchema = createUserSchema.partial();
 
 export const userQuerySchema = z.object({
-	page: z.coerce.number().int().min(1).optional(),
-	pageSize: z.coerce.number().int().min(1).max(100).optional(),
-	organizationId: z.string().uuid().optional(),
+	page: z.coerce.number().int().min(1, VALIDATION_MESSAGES.MIN_VALUE(1)).optional(),
+	pageSize: z.coerce
+		.number()
+		.int()
+		.min(1, VALIDATION_MESSAGES.MIN_VALUE(1))
+		.max(100, VALIDATION_MESSAGES.MAX_VALUE(100))
+		.optional(),
+	organizationId: z.string().uuid(VALIDATION_MESSAGES.UUID).optional(),
 	active: z.coerce.boolean().optional(),
-	search: z.string().max(255).optional(),
+	search: z.string().max(255, VALIDATION_MESSAGES.MAX_LENGTH(255)).optional(),
 	orderBy: z.enum(ALLOWED_ORDER_BY).optional(),
 	order: z.enum(ALLOWED_ORDER).optional(),
 });
 
 export const userParamsSchema = z.object({
-	userId: z.string().uuid('Invalid user ID'),
+	userId: z.string().uuid(VALIDATION_MESSAGES.UUID),
 });
 
 export type CreateUserBody = z.infer<typeof createUserSchema>;

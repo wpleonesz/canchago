@@ -1,0 +1,18 @@
+export const VALIDATION_MESSAGES = {
+	EMAIL: 'Formato de correo electrónico inválido',
+	UUID: 'Identificador único inválido (se esperaba UUID v4)',
+	REQUIRED: 'El campo es requerido',
+	MIN_LENGTH: (min: number) => `Mínimo ${min} caracteres`,
+	MAX_LENGTH: (max: number) => `Máximo ${max} caracteres`,
+	MIN_VALUE: (min: number) => `Valor mínimo permitido: ${min}`,
+	MAX_VALUE: (max: number) => `Valor máximo permitido: ${max}`,
+	ENUM: 'Valor no permitido para este campo',
+	NUMBER: 'Se esperaba un número',
+	BOOLEAN: 'Se esperaba verdadero o falso',
+	ARRAY: 'Se esperaba un array',
+	OBJECT: 'Se esperaba un objeto',
+	STRING: 'Se esperaba un texto',
+	DATE: 'Formato de fecha inválido',
+	URL: 'URL inválida',
+	PHONE: 'Número de teléfono inválido',
+} as const;

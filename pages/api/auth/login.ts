@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
-import { ValidationError } from '@/errors/auth';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { env } from '@/lib/config/env';
 import { buildCookieHeader, appendSetCookie } from '@/lib/http/cookies';
 import { buildAuthorizationUrl } from '@/lib/oauth';

@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
 import { auth } from '@/middleware/auth';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { revokeToken } from '@/lib/oauth';
 import { clearSessionCookie } from '@/lib/session';
 

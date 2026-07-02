@@ -1,9 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
-import { AuthenticationError, ValidationError } from '@/errors/auth';
+import { AuthenticationError } from '@/errors';
 import { auth } from '@/middleware/auth';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { refreshAccessToken } from '@/lib/oauth';
 import { setSessionCookie, type SessionPayload } from '@/lib/session';
 
@@ -19,7 +19,7 @@ router.use(auth).post(async (req, res) => {
 	const refreshToken = req.session.tokens.refreshToken;
 
 	if (!refreshToken) {
-		throw new ValidationError('Session does not include a refresh token');
+		throw new AuthenticationError('Session does not include a refresh token');
 	}
 
 	const expiresAt = new Date(req.session.tokens.expiresAt).getTime();

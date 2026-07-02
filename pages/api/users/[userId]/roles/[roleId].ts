@@ -4,16 +4,17 @@ import { z } from 'zod';
 
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { userService } from '@/services/users';
-import { ValidationError } from '@/errors/auth';
+import { throwValidationError } from '@/lib/errors/throw-validation-error';
+import { VALIDATION_MESSAGES } from '@/validations/schemas';
 import { NotFoundError } from '@/errors/not-found-error';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
 const paramsSchema = z.object({
-	userId: z.string().uuid('Invalid user ID'),
-	roleId: z.string().uuid('Invalid role ID'),
+	userId: z.string().uuid(VALIDATION_MESSAGES.UUID),
+	roleId: z.string().uuid(VALIDATION_MESSAGES.UUID),
 });
 
 handler.use(auth).delete(access('users.manage'), async (req, res): Promise<void> => {
@@ -22,9 +23,7 @@ handler.use(auth).delete(access('users.manage'), async (req, res): Promise<void>
 		roleId: req.query.roleId,
 	});
 
-	if (!parsed.success) {
-		throw new ValidationError('Invalid parameters');
-	}
+	throwValidationError(parsed);
 
 	const user = await userService.getById(parsed.data.userId);
 	if (!user) {

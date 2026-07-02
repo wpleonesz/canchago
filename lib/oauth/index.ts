@@ -1,7 +1,7 @@
 import { createRemoteJWKSet, importSPKI, jwtVerify } from 'jose';
 import type { JWTVerifyGetKey } from 'jose';
 
-import { ValidationError } from '@/errors/auth';
+import { AuthenticationError } from '@/errors';
 
 import { env } from '@/lib/config/env';
 
@@ -31,7 +31,7 @@ const parseTokenResponse = async (response: Response): Promise<OAuthTokenRespons
 			typeof body.error_description === 'string'
 				? body.error_description
 				: 'OAuth token exchange failed';
-		throw new ValidationError(errorMessage);
+		throw new AuthenticationError(errorMessage);
 	}
 
 	const accessToken = body.access_token;
@@ -39,7 +39,7 @@ const parseTokenResponse = async (response: Response): Promise<OAuthTokenRespons
 	const expiresIn = body.expires_in;
 
 	if (typeof accessToken !== 'string' || typeof expiresIn !== 'number') {
-		throw new ValidationError('OAuth provider returned an invalid token payload');
+		throw new AuthenticationError('OAuth provider returned an invalid token payload');
 	}
 
 	return {
@@ -104,7 +104,7 @@ const createKeyResolver = (): JWTVerifyGetKey => {
 		return async () => importSPKI(publicKeyPem, 'RS256');
 	}
 
-	throw new ValidationError(
+	throw new AuthenticationError(
 		'Missing OAUTH_JWKS_URL or OAUTH_PUBLIC_KEY_PEM for ID token verification',
 	);
 };
@@ -122,7 +122,7 @@ export const verifyIdToken = async (
 	const nonce = result.payload.nonce;
 
 	if (typeof nonce !== 'string' || nonce !== metadata.nonce) {
-		throw new ValidationError('Invalid ID token nonce');
+		throw new AuthenticationError('Invalid ID token nonce');
 	}
 
 	return result.payload as Record<string, unknown>;
@@ -163,6 +163,6 @@ export const revokeToken = async (token: string): Promise<void> => {
 	});
 
 	if (!response.ok) {
-		throw new ValidationError('OAuth token revocation failed');
+		throw new AuthenticationError('OAuth token revocation failed');
 	}
 };

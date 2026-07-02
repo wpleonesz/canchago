@@ -1,26 +1,13 @@
-export class AuthenticationError extends Error {
-	public readonly statusCode = 401;
+import { AppError } from './app-error';
 
-	constructor(message = 'Authentication required') {
-		super(message);
-		this.name = 'AuthenticationError';
+export class AuthenticationError extends AppError {
+	public constructor(message = 'Authentication required') {
+		super(message, 401, 'UNAUTHORIZED');
 	}
 }
 
-export class AuthorizationError extends Error {
-	public readonly statusCode = 403;
-
-	constructor(message = 'Insufficient permissions') {
-		super(message);
-		this.name = 'AuthorizationError';
-	}
-}
-
-export class ValidationError extends Error {
-	public readonly statusCode = 400;
-
-	constructor(message: string) {
-		super(message);
-		this.name = 'ValidationError';
+export class AuthorizationError extends AppError {
+	public constructor(message = 'Insufficient permissions') {
+		super(message, 403, 'FORBIDDEN');
 	}
 }

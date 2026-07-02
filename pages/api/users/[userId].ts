@@ -3,10 +3,10 @@ import { createRouter } from 'next-connect';
 
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { userService } from '@/services/users';
 import { userParamsSchema, updateUserSchema } from '@/validations/users';
-import { ValidationError } from '@/errors/auth';
+import { throwValidationError } from '@/lib/errors/throw-validation-error';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
@@ -14,10 +14,7 @@ handler
 	.use(auth)
 	.get(access('users.read'), async (req, res): Promise<void> => {
 		const parsed = userParamsSchema.safeParse(req.query);
-
-		if (!parsed.success) {
-			throw new ValidationError('Parámetros de ruta inválidos.');
-		}
+		throwValidationError(parsed);
 
 		const user = await userService.getById(parsed.data.userId);
 
@@ -27,9 +24,8 @@ handler
 		const parsedParams = userParamsSchema.safeParse(req.query);
 		const parsedBody = updateUserSchema.safeParse(req.body);
 
-		if (!parsedParams.success || !parsedBody.success) {
-			throw new ValidationError('Los datos enviados no son válidos.');
-		}
+		throwValidationError(parsedParams);
+		throwValidationError(parsedBody);
 
 		const user = await userService.update(parsedParams.data.userId, parsedBody.data);
 
@@ -37,10 +33,7 @@ handler
 	})
 	.delete(access('users.delete'), async (req, res): Promise<void> => {
 		const parsed = userParamsSchema.safeParse(req.query);
-
-		if (!parsed.success) {
-			throw new ValidationError('Parámetros de ruta inválidos.');
-		}
+		throwValidationError(parsed);
 
 		await userService.remove(parsed.data.userId);
 

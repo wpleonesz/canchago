@@ -13,6 +13,7 @@ _Features completadas, en orden de implementación._
 5. **004 · Gestión de Organizaciones y Sedes** — CRUD completo para organizaciones (tenants) y sedes (venues/ubicaciones) con relación 1:N, paginación, filtros, soft delete, validación, autorización basada en permisos (`organizaciones.read`/`organizaciones.manage`), transacciones en eliminación en cascada y documentación OpenAPI completa.
 6. **005 · Gestión de Roles y Permisos** — CRUD completo de roles por organización, catálogo global de permisos, asignación M:N de permisos a roles, soft delete transaccional, paginación, autorización basada en permisos (`roles.read`/`roles.manage`) y documentación OpenAPI completa.
 7. **006 · Asignación de Roles a Usuarios por Organización** — Endpoints para asignar roles a usuarios en creación o actualización, listar, agregar y remover roles específicos con validación de integridad referencial, transacciones ACID, autorización basada en permisos (`users.manage`/`users.read`), y documentación OpenAPI completa.
+8. **007 · Manejo Robusto de Errores con Detalles Zod** — Sistema centralizado de transformación de errores que convierte excepciones Zod y errores de aplicación en respuestas HTTP consistentes con detalles de validación estructurados, mensajes en español, logging sin exposición de información sensible, e integración en todos los endpoints existentes.
 
 ## Siguiente 🔜
 

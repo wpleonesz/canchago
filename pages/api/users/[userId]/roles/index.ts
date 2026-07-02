@@ -4,21 +4,27 @@ import { z } from 'zod';
 
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { userService } from '@/services/users';
 import { userParamsSchema } from '@/validations/users';
-import { ValidationError } from '@/errors/auth';
+import { throwValidationError } from '@/lib/errors/throw-validation-error';
 import { NotFoundError } from '@/errors/not-found-error';
+import { VALIDATION_MESSAGES } from '@/validations/schemas';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
 const userRolesQuerySchema = z.object({
-	page: z.coerce.number().int().min(1).optional(),
-	pageSize: z.coerce.number().int().min(1).max(100).optional(),
+	page: z.coerce.number().int().min(1, VALIDATION_MESSAGES.MIN_VALUE(1)).optional(),
+	pageSize: z.coerce
+		.number()
+		.int()
+		.min(1, VALIDATION_MESSAGES.MIN_VALUE(1))
+		.max(100, VALIDATION_MESSAGES.MAX_VALUE(100))
+		.optional(),
 });
 
 const assignRolesSchema = z.object({
-	roleIds: z.array(z.string().uuid('Invalid role ID')).min(1, 'At least one role is required'),
+	roleIds: z.array(z.string().uuid(VALIDATION_MESSAGES.UUID)).min(1, VALIDATION_MESSAGES.REQUIRED),
 });
 
 handler
@@ -27,9 +33,8 @@ handler
 		const parsedParams = userParamsSchema.safeParse({ userId: req.query.userId });
 		const parsedQuery = userRolesQuerySchema.safeParse(req.query);
 
-		if (!parsedParams.success || !parsedQuery.success) {
-			throw new ValidationError('Invalid parameters');
-		}
+		throwValidationError(parsedParams);
+		throwValidationError(parsedQuery);
 
 		const user = await userService.getById(parsedParams.data.userId);
 		if (!user) {
@@ -49,9 +54,8 @@ handler
 		const parsedParams = userParamsSchema.safeParse({ userId: req.query.userId });
 		const parsedBody = assignRolesSchema.safeParse(req.body);
 
-		if (!parsedParams.success || !parsedBody.success) {
-			throw new ValidationError('Invalid parameters or body');
-		}
+		throwValidationError(parsedParams);
+		throwValidationError(parsedBody);
 
 		const user = await userService.getById(parsedParams.data.userId);
 		if (!user) {

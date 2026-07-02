@@ -3,13 +3,13 @@ import { createRouter } from 'next-connect';
 
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { organizacionService } from '@/services/organizaciones-sedes';
 import {
 	organizationQuerySchema,
 	createOrganizationSchema,
 } from '@/validations/organizaciones-sedes';
-import { ValidationError } from '@/errors/auth';
+import { throwValidationError } from '@/lib/errors/throw-validation-error';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
@@ -17,10 +17,7 @@ handler
 	.use(auth)
 	.get(access('organizaciones.read'), async (req, res): Promise<void> => {
 		const parsed = organizationQuerySchema.safeParse(req.query);
-
-		if (!parsed.success) {
-			throw new ValidationError('Parámetros de consulta inválidos.');
-		}
+		throwValidationError(parsed);
 
 		const result = await organizacionService.getAll(parsed.data);
 
@@ -28,10 +25,7 @@ handler
 	})
 	.post(access('organizaciones.manage'), async (req, res): Promise<void> => {
 		const parsed = createOrganizationSchema.safeParse(req.body);
-
-		if (!parsed.success) {
-			throw new ValidationError('Los datos enviados no son válidos.');
-		}
+		throwValidationError(parsed);
 
 		const organization = await organizacionService.create(parsed.data);
 

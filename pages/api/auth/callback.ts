@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
-import { AuthenticationError, ValidationError } from '@/errors/auth';
-import { routerOptions } from '@/pages/api/_router';
+import { AuthenticationError } from '@/errors';
+import { routerOptions } from '@/lib/api/router-config';
 import { env } from '@/lib/config/env';
 import { exchangeCode, verifyIdToken } from '@/lib/oauth';
 import {
@@ -27,7 +27,7 @@ router.get(async (req, res) => {
 	const temporaryCookie = req.cookies[env.SESSION_TEMP_COOKIE_NAME];
 
 	if (!code || !state) {
-		throw new ValidationError('Missing authorization code or state');
+		throw new AuthenticationError('Missing authorization code or state');
 	}
 
 	if (!temporaryCookie) {
@@ -37,13 +37,13 @@ router.get(async (req, res) => {
 	const oauthState = await decryptTemporaryOAuthCookie(temporaryCookie);
 
 	if (oauthState.state !== state) {
-		throw new ValidationError('Invalid OAuth state');
+		throw new AuthenticationError('Invalid OAuth state');
 	}
 
 	const tokens = await exchangeCode(code, oauthState.codeVerifier);
 
 	if (!tokens.idToken) {
-		throw new ValidationError('Missing ID token from provider');
+		throw new AuthenticationError('Missing ID token from provider');
 	}
 
 	const claims = (await verifyIdToken(tokens.idToken, {
@@ -53,7 +53,7 @@ router.get(async (req, res) => {
 	})) as OAuthClaims;
 
 	if (!claims.sub || !claims.email || !claims.name) {
-		throw new ValidationError('Incomplete identity claims from provider');
+		throw new AuthenticationError('Incomplete identity claims from provider');
 	}
 
 	const syncedUser = await findOrSyncByOAuth(claims.sub, claims.email, claims.name);

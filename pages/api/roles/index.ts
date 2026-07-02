@@ -3,15 +3,15 @@ import { createRouter } from 'next-connect';
 
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { roleService } from '@/services/roles-permisos/role.service';
 import { permissionService } from '@/services/roles-permisos/permission.service';
 import {
 	createRoleInputSchema,
 	paginationSchema,
 } from '@/validations/roles-permisos/role.validation';
-import { ValidationError } from '@/errors/auth';
-import { ConflictError } from '@/errors/conflict-error';
+import { throwValidationError } from '@/lib/errors/throw-validation-error';
+import { ConflictError, ValidationError } from '@/errors';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
@@ -19,10 +19,7 @@ handler
 	.use(auth)
 	.get(access('roles.read'), async (req, res): Promise<void> => {
 		const pagination = paginationSchema.safeParse(req.query);
-
-		if (!pagination.success) {
-			throw new ValidationError('Parámetros de paginación inválidos.');
-		}
+		throwValidationError(pagination);
 
 		const { organizationId } = req.query;
 
@@ -57,10 +54,7 @@ handler
 			...req.body,
 			organizationId,
 		});
-
-		if (!parsed.success) {
-			throw new ValidationError('Los datos enviados no son válidos.');
-		}
+		throwValidationError(parsed);
 
 		if (parsed.data.permissionIds && parsed.data.permissionIds.length > 0) {
 			await permissionService.validatePermissionIds(parsed.data.permissionIds);

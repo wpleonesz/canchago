@@ -3,14 +3,14 @@ import { createRouter } from 'next-connect';
 
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { sedeService } from '@/services/organizaciones-sedes';
 import {
 	sedeCollectionParamsSchema,
 	sedeQuerySchema,
 	createSedeSchema,
 } from '@/validations/organizaciones-sedes';
-import { ValidationError } from '@/errors/auth';
+import { throwValidationError } from '@/lib/errors/throw-validation-error';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
@@ -20,9 +20,8 @@ handler
 		const parsedParams = sedeCollectionParamsSchema.safeParse(req.query);
 		const parsedQuery = sedeQuerySchema.safeParse(req.query);
 
-		if (!parsedParams.success || !parsedQuery.success) {
-			throw new ValidationError('Parámetros inválidos.');
-		}
+		throwValidationError(parsedParams);
+		throwValidationError(parsedQuery);
 
 		const result = await sedeService.getAll(parsedParams.data.organizationId, parsedQuery.data);
 
@@ -32,9 +31,8 @@ handler
 		const parsedParams = sedeCollectionParamsSchema.safeParse(req.query);
 		const parsedBody = createSedeSchema.safeParse(req.body);
 
-		if (!parsedParams.success || !parsedBody.success) {
-			throw new ValidationError('Los datos enviados no son válidos.');
-		}
+		throwValidationError(parsedParams);
+		throwValidationError(parsedBody);
 
 		const sede = await sedeService.create(parsedParams.data.organizationId, parsedBody.data);
 

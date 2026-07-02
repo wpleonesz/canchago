@@ -3,14 +3,14 @@ import { createRouter } from 'next-connect';
 
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { roleService } from '@/services/roles-permisos/role.service';
 import { rolePermissionDb } from '@/database/roles-permisos/role-permission.db';
 import { permissionService } from '@/services/roles-permisos/permission.service';
 import { paginationSchema } from '@/validations/roles-permisos/role.validation';
 import { updateRolePermissionsSchema } from '@/validations/roles-permisos/permission.validation';
-import { ValidationError } from '@/errors/auth';
-import { NotFoundError } from '@/errors/not-found-error';
+import { throwValidationError } from '@/lib/errors/throw-validation-error';
+import { NotFoundError, ValidationError } from '@/errors';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
@@ -19,14 +19,10 @@ handler
 	.get(access('roles.read'), async (req, res): Promise<void> => {
 		const { roleId, organizationId } = req.query;
 		const pagination = paginationSchema.safeParse(req.query);
+		throwValidationError(pagination);
 
-		if (
-			!pagination.success ||
-			!organizationId ||
-			typeof organizationId !== 'string' ||
-			typeof roleId !== 'string'
-		) {
-			throw new ValidationError('Parámetros inválidos');
+		if (!organizationId || typeof organizationId !== 'string' || typeof roleId !== 'string') {
+			throw new ValidationError('roleId y organizationId requeridos');
 		}
 
 		try {
@@ -63,10 +59,7 @@ handler
 		}
 
 		const parsed = updateRolePermissionsSchema.safeParse(req.body);
-
-		if (!parsed.success) {
-			throw new ValidationError('Los datos enviados no son válidos.');
-		}
+		throwValidationError(parsed);
 
 		try {
 			const role = await roleService.getRoleById(roleId, organizationId);

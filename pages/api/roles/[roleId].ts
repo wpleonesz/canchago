@@ -3,13 +3,12 @@ import { createRouter } from 'next-connect';
 
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { roleService } from '@/services/roles-permisos/role.service';
 import { permissionService } from '@/services/roles-permisos/permission.service';
 import { updateRoleInputSchema } from '@/validations/roles-permisos/role.validation';
-import { ValidationError } from '@/errors/auth';
-import { NotFoundError } from '@/errors/not-found-error';
-import { ConflictError } from '@/errors/conflict-error';
+import { throwValidationError } from '@/lib/errors/throw-validation-error';
+import { NotFoundError, ConflictError, ValidationError } from '@/errors';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
@@ -40,10 +39,7 @@ handler
 		}
 
 		const parsed = updateRoleInputSchema.safeParse(req.body);
-
-		if (!parsed.success) {
-			throw new ValidationError('Los datos enviados no son válidos.');
-		}
+		throwValidationError(parsed);
 
 		if (parsed.data.permissionIds && parsed.data.permissionIds.length > 0) {
 			await permissionService.validatePermissionIds(parsed.data.permissionIds);

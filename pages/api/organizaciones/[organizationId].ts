@@ -3,13 +3,13 @@ import { createRouter } from 'next-connect';
 
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { organizacionService } from '@/services/organizaciones-sedes';
 import {
 	organizationParamsSchema,
 	updateOrganizationSchema,
 } from '@/validations/organizaciones-sedes';
-import { ValidationError } from '@/errors/auth';
+import { throwValidationError } from '@/lib/errors/throw-validation-error';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
@@ -17,10 +17,7 @@ handler
 	.use(auth)
 	.get(access('organizaciones.read'), async (req, res): Promise<void> => {
 		const parsed = organizationParamsSchema.safeParse(req.query);
-
-		if (!parsed.success) {
-			throw new ValidationError('Parámetros de ruta inválidos.');
-		}
+		throwValidationError(parsed);
 
 		const organization = await organizacionService.getById(parsed.data.organizationId);
 
@@ -30,9 +27,8 @@ handler
 		const parsedParams = organizationParamsSchema.safeParse(req.query);
 		const parsedBody = updateOrganizationSchema.safeParse(req.body);
 
-		if (!parsedParams.success || !parsedBody.success) {
-			throw new ValidationError('Los datos enviados no son válidos.');
-		}
+		throwValidationError(parsedParams);
+		throwValidationError(parsedBody);
 
 		const organization = await organizacionService.update(
 			parsedParams.data.organizationId,
@@ -43,10 +39,7 @@ handler
 	})
 	.delete(access('organizaciones.manage'), async (req, res): Promise<void> => {
 		const parsed = organizationParamsSchema.safeParse(req.query);
-
-		if (!parsed.success) {
-			throw new ValidationError('Parámetros de ruta inválidos.');
-		}
+		throwValidationError(parsed);
 
 		await organizacionService.remove(parsed.data.organizationId);
 

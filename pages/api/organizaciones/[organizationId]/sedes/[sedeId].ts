@@ -3,10 +3,10 @@ import { createRouter } from 'next-connect';
 
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
-import { routerOptions } from '@/pages/api/_router';
+import { routerOptions } from '@/lib/api/router-config';
 import { sedeService } from '@/services/organizaciones-sedes';
 import { sedeParamsSchema, updateSedeSchema } from '@/validations/organizaciones-sedes';
-import { ValidationError } from '@/errors/auth';
+import { throwValidationError } from '@/lib/errors/throw-validation-error';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
@@ -14,10 +14,7 @@ handler
 	.use(auth)
 	.get(access('organizaciones.read'), async (req, res): Promise<void> => {
 		const parsed = sedeParamsSchema.safeParse(req.query);
-
-		if (!parsed.success) {
-			throw new ValidationError('Parámetros de ruta inválidos.');
-		}
+		throwValidationError(parsed);
 
 		const sede = await sedeService.getById(parsed.data.sedeId);
 
@@ -27,9 +24,8 @@ handler
 		const parsedParams = sedeParamsSchema.safeParse(req.query);
 		const parsedBody = updateSedeSchema.safeParse(req.body);
 
-		if (!parsedParams.success || !parsedBody.success) {
-			throw new ValidationError('Los datos enviados no son válidos.');
-		}
+		throwValidationError(parsedParams);
+		throwValidationError(parsedBody);
 
 		const sede = await sedeService.update(parsedParams.data.sedeId, parsedBody.data);
 
@@ -37,10 +33,7 @@ handler
 	})
 	.delete(access('organizaciones.manage'), async (req, res): Promise<void> => {
 		const parsed = sedeParamsSchema.safeParse(req.query);
-
-		if (!parsed.success) {
-			throw new ValidationError('Parámetros de ruta inválidos.');
-		}
+		throwValidationError(parsed);
 
 		await sedeService.remove(parsed.data.sedeId);
 

@@ -1,8 +1,7 @@
-export class NotFoundError extends Error {
-	readonly statusCode = 404;
+import { AppError } from './app-error';
 
-	constructor(message = 'Resource not found') {
-		super(message);
-		this.name = 'NotFoundError';
+export class NotFoundError extends AppError {
+	public constructor(message = 'Resource not found') {
+		super(message, 404, 'NOT_FOUND');
 	}
 }
