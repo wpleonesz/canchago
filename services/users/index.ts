@@ -22,13 +22,20 @@ export const getAll = async (query: UserQueryParams) => {
 export const create = async (body: CreateUserBody) => {
 	const user = await userData.create(body);
 
+	if (body.roleIds && body.roleIds.length > 0) {
+		await userData.assignRolesToUser(user.id, body.roleIds);
+	}
+
+	const userWithRoles = await userData.record(user.id).getUnique();
+
 	return {
-		id: user.id,
-		email: user.email,
-		firstName: user.profile?.firstName ?? '',
-		lastName: user.profile?.lastName ?? '',
-		active: user.status === 'ACTIVE',
-		createdAt: user.createdAt,
+		id: userWithRoles.id,
+		email: userWithRoles.email,
+		firstName: userWithRoles.profile?.firstName ?? '',
+		lastName: userWithRoles.profile?.lastName ?? '',
+		active: userWithRoles.status === 'ACTIVE',
+		roles: userWithRoles.userRoles.map(ur => ur.role),
+		createdAt: userWithRoles.createdAt,
 	};
 };
 
@@ -61,14 +68,21 @@ export const update = async (userId: string, body: UpdateUserBody) => {
 	try {
 		const user = await userData.record(userId).update(body);
 
+		if (body.roleIds !== undefined) {
+			await userData.assignRolesToUser(user.id, body.roleIds);
+		}
+
+		const userWithRoles = await userData.record(user.id).getUnique();
+
 		return {
-			id: user.id,
-			email: user.email,
-			firstName: user.profile?.firstName ?? '',
-			lastName: user.profile?.lastName ?? '',
-			active: user.status === 'ACTIVE',
-			createdAt: user.createdAt,
-			updatedAt: user.updatedAt,
+			id: userWithRoles.id,
+			email: userWithRoles.email,
+			firstName: userWithRoles.profile?.firstName ?? '',
+			lastName: userWithRoles.profile?.lastName ?? '',
+			active: userWithRoles.status === 'ACTIVE',
+			roles: userWithRoles.userRoles.map(ur => ur.role),
+			createdAt: userWithRoles.createdAt,
+			updatedAt: userWithRoles.updatedAt,
 		};
 	} catch (error) {
 		if (error instanceof ConflictError) {
@@ -95,4 +109,8 @@ export const userService = {
 	getById,
 	update,
 	remove,
+	getRolesByUserId: userData.getRolesByUserId,
+	assignRolesToUser: userData.assignRolesToUser,
+	addRoleToUser: userData.addRoleToUser,
+	removeRoleFromUser: userData.removeRoleFromUser,
 };

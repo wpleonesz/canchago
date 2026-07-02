@@ -8,6 +8,7 @@ export const createUserSchema = z.object({
 	firstName: z.string().min(1, 'First name is required').max(100),
 	lastName: z.string().min(1, 'Last name is required').max(100),
 	organizationId: z.string().uuid('Invalid organization ID'),
+	roleIds: z.array(z.string().uuid('Invalid role ID')).optional(),
 });
 
 export const updateUserSchema = createUserSchema.partial();

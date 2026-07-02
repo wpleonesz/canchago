@@ -247,6 +247,45 @@ export const create = async (data: CreateUserBody) => {
 	}
 };
 
+export const getRolesByUserId = async (userId: string) => {
+	const userRoles = await prisma.userRole.findMany({
+		where: { userId },
+		include: {
+			role: true,
+		},
+	});
+
+	return userRoles.map(ur => ur.role);
+};
+
+export const assignRolesToUser = async (userId: string, roleIds: string[]) =>
+	prisma.$transaction(async transaction => {
+		await transaction.userRole.deleteMany({
+			where: { userId },
+		});
+
+		if (roleIds.length > 0) {
+			await transaction.userRole.createMany({
+				data: roleIds.map(roleId => ({
+					userId,
+					roleId,
+				})),
+			});
+		}
+	});
+
+export const addRoleToUser = async (userId: string, roleId: string) => {
+	await prisma.userRole.create({
+		data: { userId, roleId },
+	});
+};
+
+export const removeRoleFromUser = async (userId: string, roleId: string) => {
+	await prisma.userRole.deleteMany({
+		where: { userId, roleId },
+	});
+};
+
 export const record = (userId: string) => ({
 	getUnique: async () =>
 		prisma.user.findUnique({

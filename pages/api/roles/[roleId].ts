@@ -6,11 +6,8 @@ import { access } from '@/middleware/access';
 import { routerOptions } from '@/pages/api/_router';
 import { roleService } from '@/services/roles-permisos/role.service';
 import { permissionService } from '@/services/roles-permisos/permission.service';
-import {
-	updateRoleInputSchema,
-	paginationSchema,
-} from '@/validations/roles-permisos/role.validation';
-import { ValidationError, AuthenticationError } from '@/errors/auth';
+import { updateRoleInputSchema } from '@/validations/roles-permisos/role.validation';
+import { ValidationError } from '@/errors/auth';
 import { NotFoundError } from '@/errors/not-found-error';
 import { ConflictError } from '@/errors/conflict-error';
 

@@ -35,6 +35,7 @@ export const CreateUserBodySchema = z.object({
 	firstName: z.string().min(1),
 	lastName: z.string().min(1),
 	organizationId: z.string().uuid(),
+	roleIds: z.array(z.string().uuid()).optional(),
 });
 
 export const UpdateUserBodySchema = CreateUserBodySchema.partial();
@@ -154,7 +155,8 @@ registry.registerPath({
 	path: '/users',
 	tags: ['Users'],
 	security: [{ cookieAuth: [] }],
-	description: 'Crea un nuevo usuario. Requiere permiso `users.create`.',
+	description:
+		'Crea un nuevo usuario. Requiere permiso `users.create`. Puede asignar roles al crear.',
 	requestBody: {
 		required: true,
 		content: {
@@ -165,6 +167,7 @@ registry.registerPath({
 					firstName: 'Juan',
 					lastName: 'Pérez',
 					organizationId: '123e4567-e89b-12d3-a456-426614174000',
+					roleIds: ['123e4567-e89b-12d3-a456-426614174001'],
 				},
 			},
 		},
@@ -211,7 +214,8 @@ registry.registerPath({
 	path: '/users/{userId}',
 	tags: ['Users'],
 	security: [{ cookieAuth: [] }],
-	description: 'Actualiza un usuario. Requiere permiso `users.update`.',
+	description:
+		'Actualiza un usuario. Requiere permiso `users.update`. Puede actualizar roles con roleIds.',
 	parameters: [userIdParam],
 	requestBody: {
 		required: false,
@@ -221,6 +225,7 @@ registry.registerPath({
 				example: {
 					firstName: 'Juan Carlos',
 					lastName: 'Pérez García',
+					roleIds: ['123e4567-e89b-12d3-a456-426614174001'],
 				},
 			},
 		},
@@ -250,6 +255,101 @@ registry.registerPath({
 	responses: {
 		204: {
 			description: 'Usuario eliminado',
+		},
+		...errorResponses,
+	},
+});
+
+registry.registerPath({
+	method: 'get',
+	path: '/users/{userId}/roles',
+	tags: ['UserRoles'],
+	security: [{ cookieAuth: [] }],
+	description: 'Obtiene los roles asignados a un usuario. Requiere permiso `users.read`.',
+	parameters: [
+		userIdParam,
+		{
+			name: 'page',
+			in: 'query',
+			schema: { type: 'integer', minimum: 1 },
+			description: 'Número de página (default: 1)',
+		},
+		{
+			name: 'pageSize',
+			in: 'query',
+			schema: { type: 'integer', minimum: 1, maximum: 100 },
+			description: 'Registros por página (default: 20)',
+		},
+	],
+	responses: {
+		200: {
+			description: 'Roles del usuario',
+			content: {
+				'application/json': {
+					schema: z.object({
+						data: z.array(RoleSchema),
+						meta: PaginationMetaSchema,
+					}),
+				},
+			},
+		},
+		...errorResponses,
+	},
+});
+
+registry.registerPath({
+	method: 'post',
+	path: '/users/{userId}/roles',
+	tags: ['UserRoles'],
+	security: [{ cookieAuth: [] }],
+	description: 'Asigna nuevos roles a un usuario. Requiere permiso `users.manage`.',
+	parameters: [userIdParam],
+	requestBody: {
+		required: true,
+		content: {
+			'application/json': {
+				schema: z.object({
+					roleIds: z.array(z.string().uuid()),
+				}),
+				example: {
+					roleIds: ['123e4567-e89b-12d3-a456-426614174001'],
+				},
+			},
+		},
+	},
+	responses: {
+		201: {
+			description: 'Roles asignados',
+			content: {
+				'application/json': {
+					schema: z.object({
+						data: z.array(RoleSchema),
+					}),
+				},
+			},
+		},
+		...errorResponses,
+	},
+});
+
+const roleIdParam = {
+	name: 'roleId',
+	in: 'path' as const,
+	required: true,
+	schema: { type: 'string' as const, format: 'uuid' },
+	example: '123e4567-e89b-12d3-a456-426614174001',
+};
+
+registry.registerPath({
+	method: 'delete',
+	path: '/users/{userId}/roles/{roleId}',
+	tags: ['UserRoles'],
+	security: [{ cookieAuth: [] }],
+	description: 'Remueve un rol de un usuario. Requiere permiso `users.manage`.',
+	parameters: [userIdParam, roleIdParam],
+	responses: {
+		204: {
+			description: 'Rol removido',
 		},
 		...errorResponses,
 	},

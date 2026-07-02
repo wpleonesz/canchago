@@ -1,5 +1,4 @@
 import { roleDb } from '@/database/roles-permisos/role.db';
-import { permissionDb } from '@/database/roles-permisos/permission.db';
 import { rolePermissionDb } from '@/database/roles-permisos/role-permission.db';
 import { prisma } from '@/database/client';
 import type {
@@ -63,7 +62,7 @@ export const roleService = {
 		if (input.name !== undefined) updateData.name = input.name;
 		if (input.description !== undefined) updateData.description = input.description;
 
-		const updated = await roleDb.updateRole(roleId, updateData);
+		await roleDb.updateRole(roleId, updateData);
 
 		if (input.permissionIds !== undefined) {
 			await rolePermissionDb.assignPermissionsToRole(roleId, input.permissionIds);
