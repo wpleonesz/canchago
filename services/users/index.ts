@@ -88,3 +88,11 @@ export const remove = async (userId: string) => {
 
 	await userData.record(userId).remove();
 };
+
+export const userService = {
+	getAll,
+	create,
+	getById,
+	update,
+	remove,
+};

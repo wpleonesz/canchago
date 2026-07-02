@@ -34,6 +34,32 @@ const envSchema = z.object({
 		.int()
 		.positive()
 		.default(60 * 10),
+	BYPASS_ACCESS_CONTROL: z
+		.preprocess(value => {
+			if (value === undefined) {
+				return false;
+			}
+
+			if (typeof value === 'string') {
+				return value.toLowerCase() === 'true';
+			}
+
+			return value;
+		}, z.boolean())
+		.default(false),
+	BYPASS_AUTH: z
+		.preprocess(value => {
+			if (value === undefined) {
+				return false;
+			}
+
+			if (typeof value === 'string') {
+				return value.toLowerCase() === 'true';
+			}
+
+			return value;
+		}, z.boolean())
+		.default(false),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

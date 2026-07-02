@@ -2,10 +2,16 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import type { NextHandler } from 'next-connect';
 
 import { AuthorizationError } from '@/errors/auth';
+import { env } from '@/lib/config/env';
 
 export const access =
 	(...requiredPermissions: string[]) =>
 	async (req: NextApiRequest, _res: NextApiResponse, next: NextHandler): Promise<void> => {
+		if (env.NODE_ENV !== 'production' && env.BYPASS_ACCESS_CONTROL) {
+			await next();
+			return;
+		}
+
 		const permissions = req.user?.permissions ?? [];
 		const grantedPermissions = new Set(permissions.map(permission => permission.code));
 

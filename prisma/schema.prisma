@@ -14,32 +14,42 @@ datasource db {
 
 //Modulo de las organizaciones
 model Organization {
-  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name              String   @db.VarChar(150)
-  legalName         String?  @map("legal_name") @db.VarChar(200)
-  taxIdentification String?  @map("tax_identification") @db.VarChar(30)
-  status            String   @db.VarChar(30)
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String    @db.VarChar(150)
+  legalName         String?   @map("legal_name") @db.VarChar(200)
+  taxIdentification String?   @map("tax_identification") @db.VarChar(30)
+  email             String?   @db.VarChar(180)
+  phone             String?   @db.VarChar(20)
+  domain            String?   @db.VarChar(255)
+  status            String    @db.VarChar(30)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
 
   venues    Venue[]
   roles     Role[]
   userRoles UserRole[]
 
+  @@index([name])
   @@map("organizations")
 }
 
 model Venue {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String   @map("organization_id") @db.Uuid
-  name           String   @db.VarChar(150)
-  status         String   @db.VarChar(30)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  name           String    @db.VarChar(150)
+  address        String?   @db.Text
+  phone          String?   @db.VarChar(20)
+  email          String?   @db.VarChar(180)
+  status         String    @db.VarChar(30)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userRoles    UserRole[]
 
+  @@unique([organizationId, name])
   @@index([organizationId])
   @@map("venues")
 }
@@ -101,25 +111,32 @@ model UserSession {
 
 //Modulo de roles y permisos
 model Role {
-  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String? @map("organization_id") @db.Uuid
-  code           String  @db.VarChar(100)
-  name           String  @db.VarChar(150)
-  isSystem       Boolean @default(false) @map("is_system")
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  code           String    @db.VarChar(100)
+  name           String    @db.VarChar(150)
+  description    String?   @db.Text
+  isSystem       Boolean   @default(false) @map("is_system")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz
 
   organization Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   permissions  RolePermission[]
   userRoles    UserRole[]
 
+  @@unique([organizationId, name])
   @@index([organizationId])
   @@map("roles")
 }
 
 model Permission {
-  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  module String @db.VarChar(100)
-  action String @db.VarChar(100)
-  code   String @unique @db.VarChar(200)
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  module      String    @db.VarChar(100)
+  action      String    @db.VarChar(100)
+  code        String    @unique @db.VarChar(200)
+  description String?   @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
   roles RolePermission[]
   menus MenuPermission[]

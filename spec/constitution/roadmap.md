@@ -10,12 +10,14 @@ _Features completadas, en orden de implementación._
 2. **001 · Pipeline Spec-Driven (SDD)** — Configuración del middleware `parser.js` para validación automática contra contratos OpenAPI.
 3. **002 · Autenticación Core (Login)** — Flujo OAuth 2.0 Authorization Code + PKCE con sesiones cifradas en cookies HttpOnly mediante `@hapi/iron`, callback, refresh, logout y documentación OpenAPI completa.
 4. **003 · Gestión de Usuarios** — CRUD completo de usuarios (GET, POST, PATCH, DELETE) con paginación, búsqueda, filtros, ordenamiento, soft delete, validación de permisos y documentación OpenAPI.
+5. **004 · Gestión de Organizaciones y Sedes** — CRUD completo para organizaciones (tenants) y sedes (venues/ubicaciones) con relación 1:N, paginación, filtros, soft delete, validación, autorización basada en permisos (`organizaciones.read`/`organizaciones.manage`), transacciones en eliminación en cascada y documentación OpenAPI completa.
 
 ## Siguiente 🔜
 
 _Lo próximo a abordar. Idealmente una sola feature "en curso" a la vez._
 
-**Árbol de Permisos y Menús (RBAC)** — Generación dinámica de la navegación UI basada estrictamente en los permisos del usuario.
+**Asignación de Roles a Usuarios por Organización** — Vincular usuarios con roles específicos a nivel de organización, permitiendo RBAC granular y delegación de permisos.
+
 
 ## Backlog / ideas 💡
 
