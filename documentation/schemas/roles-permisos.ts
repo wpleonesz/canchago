@@ -260,7 +260,7 @@ const errorResponses = {
 // Registrar endpoints
 registry.registerPath({
 	method: 'get',
-	path: '/api/roles',
+	path: '/roles',
 	tags: ['Roles'],
 	description: rolesListDescription,
 	parameters: [
@@ -296,7 +296,7 @@ registry.registerPath({
 
 registry.registerPath({
 	method: 'post',
-	path: '/api/roles',
+	path: '/roles',
 	tags: ['Roles'],
 	description: rolesCreateDescription,
 	parameters: [
@@ -312,6 +312,14 @@ registry.registerPath({
 		content: {
 			'application/json': {
 				schema: CreateRoleInputSchema,
+				example: {
+					name: 'Administrador de Sede',
+					description: 'Gestiona las sedes y reservas de la organización',
+					permissionIds: [
+						'123e4567-e89b-12d3-a456-426614174001',
+						'123e4567-e89b-12d3-a456-426614174002',
+					],
+				},
 			},
 		},
 	},
@@ -330,7 +338,7 @@ registry.registerPath({
 
 registry.registerPath({
 	method: 'get',
-	path: '/api/roles/{roleId}',
+	path: '/roles/{roleId}',
 	tags: ['Roles'],
 	description: roleDetailDescription,
 	parameters: [
@@ -362,7 +370,7 @@ registry.registerPath({
 
 registry.registerPath({
 	method: 'patch',
-	path: '/api/roles/{roleId}',
+	path: '/roles/{roleId}',
 	tags: ['Roles'],
 	description: roleUpdateDescription,
 	parameters: [
@@ -384,6 +392,11 @@ registry.registerPath({
 		content: {
 			'application/json': {
 				schema: UpdateRoleInputSchema,
+				example: {
+					name: 'Administrador de Sede Actualizado',
+					description: 'Descripción actualizada del rol',
+					permissionIds: ['123e4567-e89b-12d3-a456-426614174001'],
+				},
 			},
 		},
 	},
@@ -402,7 +415,7 @@ registry.registerPath({
 
 registry.registerPath({
 	method: 'delete',
-	path: '/api/roles/{roleId}',
+	path: '/roles/{roleId}',
 	tags: ['Roles'],
 	description: roleDeleteDescription,
 	parameters: [
@@ -429,7 +442,7 @@ registry.registerPath({
 
 registry.registerPath({
 	method: 'get',
-	path: '/api/roles/{roleId}/permisos',
+	path: '/roles/{roleId}/permisos',
 	tags: ['Roles - Permisos'],
 	description: rolePermissionsListDescription,
 	parameters: [
@@ -471,7 +484,7 @@ registry.registerPath({
 
 registry.registerPath({
 	method: 'patch',
-	path: '/api/roles/{roleId}/permisos',
+	path: '/roles/{roleId}/permisos',
 	tags: ['Roles - Permisos'],
 	description: rolePermissionsUpdateDescription,
 	parameters: [
@@ -493,6 +506,12 @@ registry.registerPath({
 		content: {
 			'application/json': {
 				schema: UpdateRolePermissionsInputSchema,
+				example: {
+					permissionIds: [
+						'123e4567-e89b-12d3-a456-426614174001',
+						'123e4567-e89b-12d3-a456-426614174002',
+					],
+				},
 			},
 		},
 	},
@@ -511,7 +530,7 @@ registry.registerPath({
 
 registry.registerPath({
 	method: 'get',
-	path: '/api/permisos',
+	path: '/permisos',
 	tags: ['Permisos'],
 	description: permissionsListDescription,
 	parameters: [

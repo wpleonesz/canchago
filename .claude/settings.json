@@ -1,4 +1,10 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(yarn typecheck *)",
+      "Bash(npx tsx --tsconfig tsconfig.json -e ' *)"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {
