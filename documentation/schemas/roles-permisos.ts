@@ -262,6 +262,7 @@ registry.registerPath({
 	method: 'get',
 	path: '/roles',
 	tags: ['Roles'],
+	security: [{ cookieAuth: [] }],
 	description: rolesListDescription,
 	parameters: [
 		{
@@ -298,6 +299,7 @@ registry.registerPath({
 	method: 'post',
 	path: '/roles',
 	tags: ['Roles'],
+	security: [{ cookieAuth: [] }],
 	description: rolesCreateDescription,
 	parameters: [
 		{
@@ -340,6 +342,7 @@ registry.registerPath({
 	method: 'get',
 	path: '/roles/{roleId}',
 	tags: ['Roles'],
+	security: [{ cookieAuth: [] }],
 	description: roleDetailDescription,
 	parameters: [
 		{
@@ -372,6 +375,7 @@ registry.registerPath({
 	method: 'patch',
 	path: '/roles/{roleId}',
 	tags: ['Roles'],
+	security: [{ cookieAuth: [] }],
 	description: roleUpdateDescription,
 	parameters: [
 		{
@@ -417,6 +421,7 @@ registry.registerPath({
 	method: 'delete',
 	path: '/roles/{roleId}',
 	tags: ['Roles'],
+	security: [{ cookieAuth: [] }],
 	description: roleDeleteDescription,
 	parameters: [
 		{
@@ -444,6 +449,7 @@ registry.registerPath({
 	method: 'get',
 	path: '/roles/{roleId}/permisos',
 	tags: ['Roles - Permisos'],
+	security: [{ cookieAuth: [] }],
 	description: rolePermissionsListDescription,
 	parameters: [
 		{
@@ -486,6 +492,7 @@ registry.registerPath({
 	method: 'patch',
 	path: '/roles/{roleId}/permisos',
 	tags: ['Roles - Permisos'],
+	security: [{ cookieAuth: [] }],
 	description: rolePermissionsUpdateDescription,
 	parameters: [
 		{
@@ -532,6 +539,7 @@ registry.registerPath({
 	method: 'get',
 	path: '/permisos',
 	tags: ['Permisos'],
+	security: [{ cookieAuth: [] }],
 	description: permissionsListDescription,
 	parameters: [
 		{

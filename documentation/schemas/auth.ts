@@ -51,31 +51,60 @@ const errorResponses = {
 
 const loginDescription = `Inicia el flujo OAuth 2.0 Authorization Code + PKCE.
 
-**Cómo probar desde esta documentación:**
+## ⚠️ Este endpoint NO se prueba con "Execute"
 
-1. Haz clic en **Execute** — la respuesta será un \`302\` que el navegador seguirá automáticamente.
-2. Completa el login en el proveedor OAuth.
-3. Al volver, la cookie de sesión quedará activa en el navegador.
-4. Todos los endpoints protegidos (**🔒**) ya podrán ejecutarse desde aquí sin configuración adicional.
+Si pulsas **Execute**, verás el error \`TypeError: Failed to fetch\`. **No es un fallo de la API.**
 
-> La cookie es \`HttpOnly\` y el navegador la envía automáticamente gracias a \`withCredentials: true\`.`;
+"Execute" hace una llamada AJAX (\`fetch\`). Este endpoint responde \`302\` hacia el Identity Provider, y el navegador **bloquea por CORS** esa llamada AJAX hacia otro origen. Aunque no la bloqueara, un login no se puede pintar dentro de un \`fetch\`: el usuario necesita **ver** la pantalla del proveedor para escribir su contraseña.
+
+> **La lección:** el login OAuth exige una **navegación real del navegador**, no una petición AJAX. Ninguna SPA puede iniciar sesión con \`fetch\`; siempre redirige la ventana completa.
+
+## Cómo probar de verdad
+
+1. Abre en una **pestaña nueva**: <a href="/api/auth/login" target="_blank">http://localhost:3000/api/auth/login</a>
+2. Autentícate en Keycloak (p. ej. \`futbolista\` / \`canchago123\`). **La contraseña se escribe en el IdP, nunca en Canchago.**
+3. Al volver, la cookie de sesión ya está en el navegador.
+4. Regresa a esta pestaña y prueba \`GET /auth/session\` con **Execute** — ahí sí funciona.
+
+## Qué mirar en DevTools → Network
+
+- La redirección lleva \`code_challenge_method=S256\`: eso es **PKCE**.
+- La cookie \`canchago_oauth_state\` guarda \`state\`, \`nonce\` y \`code_verifier\` **cifrados**.
+- La cookie final \`canchago_session\` sale con \`HttpOnly; Secure; SameSite=Lax\`. \`HttpOnly\` = **JavaScript no puede leerla**: ésa es la defensa contra XSS.`;
 
 const callbackDescription = `Procesa el código OAuth devuelto por el proveedor y crea la sesión interna.
 
-Este endpoint **no se llama directamente** — es la URL de retorno del proveedor OAuth después de que el usuario autoriza el acceso.
+**Nunca lo llamas tú.** Es la URL de retorno a la que el Identity Provider redirige al navegador. Pulsar **Execute** aquí sólo dará \`401\`, porque no hay \`code\` ni \`state\` válidos.
 
-El flujo completo es:
-1. \`GET /auth/login\` → redirige al proveedor OAuth.
-2. El proveedor redirige a \`GET /auth/callback?code=...&state=...\`.
-3. Este endpoint valida el código, crea la sesión y redirige al cliente.`;
+## Qué hace, en orden
+
+1. Compara el \`state\` recibido contra el que guardó cifrado en la cookie temporal → **defensa contra CSRF**.
+2. Canjea el \`code\` por tokens, enviando el \`code_verifier\` → **eso es PKCE**: quien robe el \`code\` no puede canjearlo sin el verifier.
+3. Verifica el ID token: **firma** (contra el JWKS del proveedor), **issuer**, **audience** y **nonce**.
+4. Crea o sincroniza el usuario en Canchago (\`findOrSyncByOAuth\`), enlazándolo al IdP por \`authAccount(provider, sub)\`.
+5. Sella la sesión en una cookie cifrada y redirige.
+
+> **Ojo con el orden:** el usuario de Canchago lo crea **este** endpoint, en el primer login. Si creas el usuario antes con \`POST /users\` usando el mismo email, no tendrá \`authAccount\`, y este paso intentará crear otro usuario con ese email y fallará por unicidad.`;
 
 const sessionDescription = `Devuelve el usuario autenticado asociado a la cookie de sesión activa.
 
-**Cómo probar desde esta documentación:**
+## Cómo probar desde esta documentación
 
-1. Asegúrate de haber iniciado sesión a través de \`GET /auth/login\`.
-2. Haz clic en **Execute** — la cookie se enviará automáticamente.
-3. La respuesta incluye \`id\`, \`email\`, \`name\`, \`roles\` y \`permissions\`.`;
+1. **Sin haber iniciado sesión**, pulsa **Execute** → responde \`401\`: _"Missing session cookie"_.
+2. Inicia sesión abriendo \`/api/auth/login\` en una pestaña nueva (ver ese endpoint).
+3. Vuelve aquí y pulsa **Execute** otra vez → ahora responde \`200\`. No configuraste ninguna cabecera: el navegador envía la cookie solo.
+
+## Lo que hay que hacer notar a los alumnos
+
+Un usuario recién autenticado llega así:
+
+\`\`\`json
+{ "data": { "email": "futbolista@canchago.local", "roles": [], "permissions": [] } }
+\`\`\`
+
+**Está autenticado, pero no está autorizado a nada.** Ésa es la diferencia entre las dos palabras.
+
+Los roles se asignan aparte (\`yarn asignar-rol\`) y **no aparecen aquí hasta que el usuario cierre sesión y vuelva a entrar**: la sesión se cifra dentro de la cookie en el momento del login, así que no se entera de cambios posteriores en la base de datos.`;
 
 const refreshDescription = `Renueva el access token cuando está próximo a expirar.
 
@@ -88,14 +117,27 @@ const refreshDescription = `Renueva el access token cuando está próximo a expi
 1. Asegúrate de tener sesión activa.
 2. Haz clic en **Execute** — la cookie se enviará automáticamente.`;
 
-const logoutDescription = `Cierra la sesión y elimina la cookie interna.
+const logoutDescription = `Cierra la sesión: revoca el token en el Identity Provider y elimina la cookie.
 
-**Cómo probar desde esta documentación:**
+## Cómo probar desde esta documentación
 
-1. Asegúrate de tener sesión activa.
-2. Haz clic en **Execute**.
-3. La respuesta será \`204\` y la cookie de sesión quedará eliminada.
-4. Los endpoints protegidos comenzarán a devolver \`401\` hasta que vuelvas a hacer login.`;
+1. Con sesión activa, pulsa **Execute** → responde \`204 No Content\`.
+2. Fíjate en la cabecera de respuesta: \`Set-Cookie: canchago_session=; Max-Age=0\` — así se borra una cookie.
+3. Vuelve a \`GET /auth/session\` y pulsa **Execute** → ahora responde \`401\`. Ya no hay sesión.
+
+## ⚠️ Advertencia honesta: esto NO invalida la sesión en el servidor
+
+La cookie es un token **sellado y autocontenido** (\`@hapi/iron\`). El logout la borra **del navegador**, pero no la anula en el servidor: no existe una lista de sesiones revocadas.
+
+Si alguien **copió el valor** de la cookie antes del logout y lo reenvía a mano:
+
+\`\`\`bash
+curl -i http://localhost:3000/api/auth/session -H "Cookie: canchago_session=<valor-viejo>"
+\`\`\`
+
+…la API **responde \`200\`** hasta que el token expire (8 h, \`SESSION_COOKIE_MAX_AGE_SECONDS\`).
+
+> **Para discutir en clase:** las sesiones sin estado son cómodas pero difíciles de revocar. La solución sería persistir la sesión (la tabla \`UserSession\` ya existe en el schema, pero hoy no la usa nadie) o llevar una lista de revocación en Redis que el middleware \`auth\` consulte.`;
 
 registry.registerPath({
 	method: 'get',

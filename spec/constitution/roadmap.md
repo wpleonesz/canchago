@@ -14,17 +14,22 @@ _Features completadas, en orden de implementación._
 6. **005 · Gestión de Roles y Permisos** — CRUD completo de roles por organización, catálogo global de permisos, asignación M:N de permisos a roles, soft delete transaccional, paginación, autorización basada en permisos (`roles.read`/`roles.manage`) y documentación OpenAPI completa.
 7. **006 · Asignación de Roles a Usuarios por Organización** — Endpoints para asignar roles a usuarios en creación o actualización, listar, agregar y remover roles específicos con validación de integridad referencial, transacciones ACID, autorización basada en permisos (`users.manage`/`users.read`), y documentación OpenAPI completa.
 8. **007 · Manejo Robusto de Errores con Detalles Zod** — Sistema centralizado de transformación de errores que convierte excepciones Zod y errores de aplicación en respuestas HTTP consistentes con detalles de validación estructurados, mensajes en español, logging sin exposición de información sensible, e integración en todos los endpoints existentes.
+9. **008 · Entorno de Demostración de Autenticación y Autorización** — Identity Provider real (Keycloak vía Docker Compose, realm importado con cliente OIDC confidencial + PKCE S256 y usuarios de prueba) que hace **ejecutable por primera vez** el flujo OAuth de la feature 002; semilla idempotente de los roles base (Futbolista y Administrador globales, Gestor de Cancha por organización) y script de asignación de roles con alcance (`organizationId`/`venueId`). Login, sesión y logout verificados de punta a punta, incluyendo 401 sin sesión y 403 sin permisos. Corrige además el comando de seed de Prisma 7, que impedía poblar el catálogo de permisos.
 
 ## Siguiente 🔜
 
 _Lo próximo a abordar. Idealmente una sola feature "en curso" a la vez._
 
-_Por definir próxima feature según prioridades del proyecto._
+- **009 · Deuda de Seguridad y Consistencia de Permisos** — Tres defectos detectados al ejecutar la feature 008 por primera vez:
+  1. **Códigos de permiso inconsistentes.** El middleware exige `users.read`, `users.create` y `users.manage`, pero el catálogo sembrado (y la constitución, §10) define `usuarios.read` / `usuarios.write` / `usuarios.delete`. Ningún permiso existente puede satisfacer al módulo de usuarios: `/api/users` responde 403 aunque se concedan todos los permisos.
+  2. **El logout no invalida la sesión en el servidor.** La cookie de `@hapi/iron` es un token autocontenido; quien copie su valor lo sigue usando hasta 8 h después del logout. La tabla `UserSession` existe en el schema pero no la usa nadie.
+  3. **`yarn build` está roto.** `database/roles-permisos/role.db.ts` tipa `data` como `unknown` y falla el type check del build.
 
 ## Backlog / ideas 💡
 
 _Sin comprometer ni ordenar del todo. Ideas que respetan la constitución._
 
 - **Motor Agnóstico de Reservas** — Catálogo de recursos y control transaccional en PostgreSQL para evitar solapamiento de horarios.
+- **Asignación de roles con alcance vía API** — `POST /api/users/:userId/roles` crea el `UserRole` sin `organizationId` ni `venueId`, así que no sabe expresar el alcance multi-tenant; hoy eso sólo se puede hacer por script.
 
 > Cada feature nueva se crea como `features/NNN-nombre-feature/` con `spec.md`, `plan.md` y `tasks.md` antes de tocar código.

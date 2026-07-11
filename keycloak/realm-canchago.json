@@ -1,0 +1,108 @@
+{
+  "realm": "canchago",
+  "enabled": true,
+  "displayName": "Canchago",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "clients": [
+    {
+      "clientId": "canchago-api",
+      "name": "Canchago API",
+      "description": "Cliente OIDC confidencial del backend Canchago (Authorization Code + PKCE)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "canchago-dev-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/api/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:3000"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      },
+      "defaultClientScopes": [
+        "openid",
+        "email",
+        "profile",
+        "roles",
+        "web-origins",
+        "acr"
+      ],
+      "optionalClientScopes": [
+        "offline_access"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "futbolista",
+      "email": "futbolista@canchago.local",
+      "firstName": "Mateo",
+      "lastName": "Vera",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "canchago123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-canchago"
+      ]
+    },
+    {
+      "username": "gestor",
+      "email": "gestor@canchago.local",
+      "firstName": "Lucia",
+      "lastName": "Paredes",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "canchago123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-canchago"
+      ]
+    },
+    {
+      "username": "administrador",
+      "email": "administrador@canchago.local",
+      "firstName": "Sofia",
+      "lastName": "Cordova",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "canchago123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-canchago"
+      ]
+    }
+  ]
+}
