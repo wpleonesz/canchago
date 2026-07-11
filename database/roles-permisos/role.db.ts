@@ -1,3 +1,5 @@
+import type { Prisma } from '@/generated/prisma/client';
+
 import { prisma } from '@/database/client';
 
 export const ROLE_ESCAPE = ['name', 'description'];
@@ -57,7 +59,7 @@ export const roleDb = {
 		});
 	},
 
-	async createRole(data: unknown) {
+	async createRole(data: Prisma.RoleUncheckedCreateInput) {
 		return prisma.role.create({
 			data,
 			include: {
@@ -68,7 +70,7 @@ export const roleDb = {
 		});
 	},
 
-	async updateRole(roleId: string, data: unknown) {
+	async updateRole(roleId: string, data: Prisma.RoleUncheckedUpdateInput) {
 		return prisma.role.update({
 			where: { id: roleId },
 			data,

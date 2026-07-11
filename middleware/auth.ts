@@ -4,6 +4,8 @@ import type { NextHandler } from 'next-connect';
 import { AuthenticationError } from '@/errors/auth';
 import { env } from '@/lib/config/env';
 import { decrypt } from '@/lib/session';
+import type { SessionPayload } from '@/lib/session';
+import { sessionService } from '@/services/auth/session.service';
 
 export const auth = async (
 	req: NextApiRequest,
@@ -11,7 +13,8 @@ export const auth = async (
 	next: NextHandler,
 ): Promise<void> => {
 	if (env.NODE_ENV !== 'production' && env.BYPASS_AUTH) {
-		const session = {
+		const session: SessionPayload = {
+			sessionId: 'dev-session',
 			user: {
 				id: 'dev-user',
 				email: 'dev@canchago.local',
@@ -39,7 +42,11 @@ export const auth = async (
 		throw new AuthenticationError('Missing session cookie');
 	}
 
-	const session = await decrypt(cookieValue);
+	// La cookie sólo trae el id de sesión. El usuario, sus roles y sus permisos se
+	// leen de la base en cada petición, así que un permiso concedido surte efecto
+	// de inmediato, y una sesión revocada deja de valer al instante.
+	const { sessionId } = await decrypt(cookieValue);
+	const session = await sessionService.resolve(sessionId);
 
 	req.session = session;
 	req.user = session.user;

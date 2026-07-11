@@ -98,14 +98,23 @@ model AuthAccount {
 }
 
 model UserSession {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId           String   @map("user_id") @db.Uuid
-  refreshTokenHash String   @map("refresh_token_hash") @db.Text
-  expiresAt        DateTime @map("expires_at") @db.Timestamptz
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+
+  // Los tokens OAuth (access, refresh, id) viven aquí y NO en la cookie:
+  // los tres juntos superan el límite de 4096 bytes que impone el navegador.
+  // Se guardan sellados con @hapi/iron, para que un volcado de la base no los exponga.
+  sealedTokens String @map("sealed_tokens") @db.Text
+
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([expiresAt])
   @@map("user_sessions")
 }
 

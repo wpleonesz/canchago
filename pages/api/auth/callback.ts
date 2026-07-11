@@ -9,9 +9,10 @@ import {
 	clearTemporaryOAuthCookie,
 	setSessionCookie,
 	decryptTemporaryOAuthCookie,
-	type SessionPayload,
+	type SessionCookiePayload,
 } from '@/lib/session';
 import { findOrSyncByOAuth } from '@/database/users';
+import { sessionService } from '@/services/auth/session.service';
 
 type OAuthClaims = {
 	sub?: string;
@@ -58,20 +59,23 @@ router.get(async (req, res) => {
 
 	const syncedUser = await findOrSyncByOAuth(claims.sub, claims.email, claims.name);
 
-	const sessionPayload: SessionPayload = {
-		user: syncedUser.user,
-		tokens: {
-			accessToken: tokens.accessToken,
-			refreshToken: tokens.refreshToken,
-			idToken: tokens.idToken,
-			tokenType: tokens.tokenType,
-			expiresAt: new Date(Date.now() + tokens.expiresIn * 1000).toISOString(),
-			nonce: oauthState.nonce,
-		},
+	// Los tokens se guardan en `user_sessions`, no en la cookie: los tres juntos
+	// superan los 4096 bytes que admite un navegador.
+	const sessionId = await sessionService.create(syncedUser.user.id, {
+		accessToken: tokens.accessToken,
+		refreshToken: tokens.refreshToken,
+		idToken: tokens.idToken,
+		tokenType: tokens.tokenType,
+		expiresAt: new Date(Date.now() + tokens.expiresIn * 1000).toISOString(),
+		nonce: oauthState.nonce,
+	});
+
+	const cookiePayload: SessionCookiePayload = {
+		sessionId,
 		createdAt: new Date().toISOString(),
 	};
 
-	await setSessionCookie(res, sessionPayload);
+	await setSessionCookie(res, cookiePayload);
 	clearTemporaryOAuthCookie(res);
 
 	res.redirect(302, env.OAUTH_SUCCESS_REDIRECT_URL);

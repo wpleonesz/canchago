@@ -5,7 +5,7 @@ import { AuthenticationError } from '@/errors';
 import { auth } from '@/middleware/auth';
 import { routerOptions } from '@/lib/api/router-config';
 import { refreshAccessToken } from '@/lib/oauth';
-import { setSessionCookie, type SessionPayload } from '@/lib/session';
+import { sessionService } from '@/services/auth/session.service';
 
 const REFRESH_THRESHOLD_MS = 5 * 60 * 1000;
 
@@ -32,19 +32,17 @@ router.use(auth).post(async (req, res) => {
 
 	const refreshedTokens = await refreshAccessToken(refreshToken);
 
-	const updatedSession: SessionPayload = {
-		...req.session,
-		tokens: {
-			...req.session.tokens,
-			accessToken: refreshedTokens.accessToken,
-			refreshToken: refreshedTokens.refreshToken ?? refreshToken,
-			idToken: refreshedTokens.idToken ?? req.session.tokens.idToken,
-			tokenType: refreshedTokens.tokenType ?? req.session.tokens.tokenType,
-			expiresAt: new Date(Date.now() + refreshedTokens.expiresIn * 1000).toISOString(),
-		},
-	};
+	// Los tokens rotan en la base, no en la cookie: la cookie sólo lleva el id de sesión,
+	// que no cambia. Por eso aquí ya no hay que reemitir ninguna cookie.
+	await sessionService.rotateTokens(req.session.sessionId, {
+		...req.session.tokens,
+		accessToken: refreshedTokens.accessToken,
+		refreshToken: refreshedTokens.refreshToken ?? refreshToken,
+		idToken: refreshedTokens.idToken ?? req.session.tokens.idToken,
+		tokenType: refreshedTokens.tokenType ?? req.session.tokens.tokenType,
+		expiresAt: new Date(Date.now() + refreshedTokens.expiresIn * 1000).toISOString(),
+	});
 
-	await setSessionCookie(res, updatedSession);
 	res.status(204).end();
 });
 

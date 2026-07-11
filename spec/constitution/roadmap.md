@@ -16,13 +16,15 @@ _Features completadas, en orden de implementación._
 8. **007 · Manejo Robusto de Errores con Detalles Zod** — Sistema centralizado de transformación de errores que convierte excepciones Zod y errores de aplicación en respuestas HTTP consistentes con detalles de validación estructurados, mensajes en español, logging sin exposición de información sensible, e integración en todos los endpoints existentes.
 9. **008 · Entorno de Demostración de Autenticación y Autorización** — Identity Provider real (Keycloak vía Docker Compose, realm importado con cliente OIDC confidencial + PKCE S256 y usuarios de prueba) que hace **ejecutable por primera vez** el flujo OAuth de la feature 002; semilla idempotente de los roles base (Futbolista y Administrador globales, Gestor de Cancha por organización) y script de asignación de roles con alcance (`organizationId`/`venueId`). Login, sesión y logout verificados de punta a punta, incluyendo 401 sin sesión y 403 sin permisos. Corrige además el comando de seed de Prisma 7, que impedía poblar el catálogo de permisos.
 
+10. **009 · Sesiones Persistentes en Servidor** — Los tokens OAuth salen de la cookie y pasan a la tabla `UserSession` (que existía sin usarse), guardados cifrados con `@hapi/iron`. **Arregla el login en el navegador**: la cookie pesaba 5.336 bytes y los navegadores descartan en silencio toda cookie de más de 4.096, así que el flujo pasaba con `curl` y fallaba en Chrome. La cookie baja a **429 bytes**. De paso, el logout **ahora sí invalida la sesión en el servidor** (una cookie copiada devuelve 401, no 200) y los roles concedidos surten efecto **sin volver a iniciar sesión**, porque el usuario se lee de la base en cada petición.
+
 ## Siguiente 🔜
 
 _Lo próximo a abordar. Idealmente una sola feature "en curso" a la vez._
 
-- **009 · Deuda de Seguridad y Consistencia de Permisos** — Tres defectos detectados al ejecutar la feature 008 por primera vez:
-  1. **Códigos de permiso inconsistentes.** El middleware exige `users.read`, `users.create` y `users.manage`, pero el catálogo sembrado (y la constitución, §10) define `usuarios.read` / `usuarios.write` / `usuarios.delete`. Ningún permiso existente puede satisfacer al módulo de usuarios: `/api/users` responde 403 aunque se concedan todos los permisos.
-  2. **El logout no invalida la sesión en el servidor.** La cookie de `@hapi/iron` es un token autocontenido; quien copie su valor lo sigue usando hasta 8 h después del logout. La tabla `UserSession` existe en el schema pero no la usa nadie.
+- **010 · Consistencia de Permisos y Deuda Técnica** — Tres defectos abiertos:
+  1. **Códigos de permiso inconsistentes.** El middleware exige `users.read`, `users.create` y `users.manage`, pero el catálogo sembrado (y la constitución, §10) define `usuarios.read` / `usuarios.write` / `usuarios.delete`. Ningún permiso existente puede satisfacer al módulo de usuarios: `/api/users` responde 403 aunque se concedan todos los permisos. **Hay que decidir si el proyecto nombra los permisos en español o en inglés.**
+  2. **Deriva en el historial de migraciones.** El checksum de `20260630185000_add_roles_permissions_fields` no cuadra con el registrado en la base: fue modificada después de aplicarse. `prisma migrate dev` exige un reset completo (borraría todos los datos). Hay que reconciliarlo antes de volver a tocar el schema.
   3. **`yarn build` está roto.** `database/roles-permisos/role.db.ts` tipa `data` como `unknown` y falla el type check del build.
 
 ## Backlog / ideas 💡

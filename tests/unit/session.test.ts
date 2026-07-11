@@ -24,25 +24,11 @@ vi.hoisted(() => {
 import { createMockResponse } from '../helpers/mock-next-response';
 
 describe('session helpers', () => {
-	it('encrypts and decrypts a session payload', async () => {
+	it('encrypts and decrypts a session cookie payload', async () => {
 		const { decrypt, encrypt } = await import('../../lib/session');
 
 		const payload = {
-			user: {
-				id: '11111111-1111-1111-1111-111111111111',
-				email: 'user@example.com',
-				name: 'User Example',
-				roles: [],
-				permissions: [],
-			},
-			tokens: {
-				accessToken: 'access-token',
-				refreshToken: 'refresh-token',
-				idToken: 'id-token',
-				tokenType: 'Bearer',
-				expiresAt: new Date(Date.now() + 60_000).toISOString(),
-				nonce: 'nonce',
-			},
+			sessionId: '22222222-2222-2222-2222-222222222222',
 			createdAt: new Date().toISOString(),
 		};
 
@@ -52,27 +38,44 @@ describe('session helpers', () => {
 		expect(unsealed).toEqual(payload);
 	});
 
+	it('keeps the session cookie under the 4096-byte browser limit', async () => {
+		const { encrypt } = await import('../../lib/session');
+
+		const sealed = await encrypt({
+			sessionId: '22222222-2222-2222-2222-222222222222',
+			createdAt: new Date().toISOString(),
+		});
+
+		// Los navegadores descartan en silencio cualquier cookie de más de 4096 bytes.
+		// Por eso los tokens OAuth viven en `user_sessions` y no aquí.
+		expect(sealed.length).toBeLessThan(4096);
+	});
+
+	it('seals and unseals the OAuth token set stored in the database', async () => {
+		const { sealTokens, unsealTokens } = await import('../../lib/session');
+
+		const tokens = {
+			accessToken: 'access-token',
+			refreshToken: 'refresh-token',
+			idToken: 'id-token',
+			tokenType: 'Bearer',
+			expiresAt: new Date(Date.now() + 60_000).toISOString(),
+			nonce: 'nonce',
+		};
+
+		const sealed = await sealTokens(tokens);
+
+		expect(sealed).not.toContain('access-token');
+		await expect(unsealTokens(sealed)).resolves.toEqual(tokens);
+	});
+
 	it('writes a session cookie with secure flags', async () => {
 		const { setSessionCookie } = await import('../../lib/session');
 
 		const response = createMockResponse();
 
 		await setSessionCookie(response, {
-			user: {
-				id: '11111111-1111-1111-1111-111111111111',
-				email: 'user@example.com',
-				name: 'User Example',
-				roles: [],
-				permissions: [],
-			},
-			tokens: {
-				accessToken: 'access-token',
-				refreshToken: 'refresh-token',
-				idToken: 'id-token',
-				tokenType: 'Bearer',
-				expiresAt: new Date(Date.now() + 60_000).toISOString(),
-				nonce: 'nonce',
-			},
+			sessionId: '22222222-2222-2222-2222-222222222222',
 			createdAt: new Date().toISOString(),
 		});
 

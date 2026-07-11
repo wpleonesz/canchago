@@ -1,4 +1,4 @@
-import { vi, describe, expect, it } from 'vitest';
+import { vi, describe, expect, it, beforeEach } from 'vitest';
 
 vi.hoisted(() => {
 	process.env.NODE_ENV = 'test';
@@ -23,13 +23,43 @@ vi.hoisted(() => {
 
 import { createMockResponse } from '../../helpers/mock-next-response';
 
+// La cookie ya sólo lleva el id de sesión: el usuario y los tokens los resuelve
+// el servicio contra la base de datos en cada petición.
+const resolve = vi.fn();
+const revoke = vi.fn();
+
+vi.mock('@/services/auth/session.service', () => ({
+	sessionService: {
+		resolve: (sessionId: string) => resolve(sessionId),
+		revoke: (sessionId: string) => revoke(sessionId),
+		create: vi.fn(),
+		rotateTokens: vi.fn(),
+	},
+}));
+
+const SESSION_ID = '22222222-2222-2222-2222-222222222222';
+
+const buildRequest = (cookie: string) =>
+	({
+		method: 'GET',
+		url: '/api/auth/session',
+		cookies: { canchago_session: cookie },
+		query: {},
+		headers: {},
+	}) as never;
+
 describe('auth session route', () => {
+	beforeEach(() => {
+		resolve.mockReset();
+	});
+
 	it('returns the current authenticated session', async () => {
 		const { encrypt } = await import('../../../lib/session');
 		const handler = (await import('../../../pages/api/auth/session')).default;
 		const response = createMockResponse();
 
-		const cookie = await encrypt({
+		resolve.mockResolvedValue({
+			sessionId: SESSION_ID,
 			user: {
 				id: '11111111-1111-1111-1111-111111111111',
 				email: 'user@example.com',
@@ -39,26 +69,19 @@ describe('auth session route', () => {
 			},
 			tokens: {
 				accessToken: 'access-token',
-				refreshToken: 'refresh-token',
-				idToken: 'id-token',
-				tokenType: 'Bearer',
 				expiresAt: new Date(Date.now() + 60_000).toISOString(),
-				nonce: 'nonce',
 			},
 			createdAt: new Date().toISOString(),
 		});
 
-		await handler(
-			{
-				method: 'GET',
-				url: '/api/auth/session',
-				cookies: { canchago_session: cookie },
-				query: {},
-				headers: {},
-			} as never,
-			response,
-		);
+		const cookie = await encrypt({
+			sessionId: SESSION_ID,
+			createdAt: new Date().toISOString(),
+		});
 
+		await handler(buildRequest(cookie), response);
+
+		expect(resolve).toHaveBeenCalledWith(SESSION_ID);
 		expect(response.statusCode).toBe(200);
 		expect(response.body).toMatchObject({
 			data: {
@@ -66,5 +89,25 @@ describe('auth session route', () => {
 				name: 'User Example',
 			},
 		});
+	});
+
+	it('rejects a cookie whose session was revoked on the server', async () => {
+		const { encrypt } = await import('../../../lib/session');
+		const { AuthenticationError } = await import('../../../errors/auth');
+		const handler = (await import('../../../pages/api/auth/session')).default;
+		const response = createMockResponse();
+
+		// Es el escenario del logout: la cookie sigue siendo criptográficamente válida,
+		// pero la sesión ya no existe en el servidor.
+		resolve.mockRejectedValue(new AuthenticationError('Session revoked or expired'));
+
+		const cookie = await encrypt({
+			sessionId: SESSION_ID,
+			createdAt: new Date().toISOString(),
+		});
+
+		await handler(buildRequest(cookie), response);
+
+		expect(response.statusCode).toBe(401);
 	});
 });

@@ -30,7 +30,12 @@
       "Bash(curl -s -i -H \"Origin: http://localhost:3000\" \"http://localhost:8081/realms/canchago/protocol/openid-connect/auth?response_type=code&client_id=canchago-api\")",
       "Bash(curl -s http://localhost:3000/api/docs/spec -o /private/tmp/claude-501/-Users-pleones11-Documents-UEA-PROYECTOS-canchago/2c10bb3c-afd9-4a25-9bc5-b7fc7b1bcd25/scratchpad/spec.json)",
       "Bash(curl -s http://localhost:3000/api/docs/spec -o /private/tmp/claude-501/-Users-pleones11-Documents-UEA-PROYECTOS-canchago/2c10bb3c-afd9-4a25-9bc5-b7fc7b1bcd25/scratchpad/spec2.json)",
-      "Bash(curl -s http://localhost:3000/api/docs/spec -o /private/tmp/claude-501/-Users-pleones11-Documents-UEA-PROYECTOS-canchago/2c10bb3c-afd9-4a25-9bc5-b7fc7b1bcd25/scratchpad/spec3.json)"
+      "Bash(curl -s http://localhost:3000/api/docs/spec -o /private/tmp/claude-501/-Users-pleones11-Documents-UEA-PROYECTOS-canchago/2c10bb3c-afd9-4a25-9bc5-b7fc7b1bcd25/scratchpad/spec3.json)",
+      "Bash(lsof -nP -iTCP:3000 -sTCP:LISTEN)",
+      "Bash(npx tsx --env-file=.env -e ' *)",
+      "Bash(npx vitest *)",
+      "Bash(curl -s -o /dev/null http://localhost:3000/api/auth/session)",
+      "Bash(bash /private/tmp/claude-501/-Users-pleones11-Documents-UEA-PROYECTOS-canchago/2c10bb3c-afd9-4a25-9bc5-b7fc7b1bcd25/scratchpad/flow2.sh)"
     ]
   },
   "hooks": {

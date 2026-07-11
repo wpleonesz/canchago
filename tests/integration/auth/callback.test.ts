@@ -49,6 +49,18 @@ vi.mock('../../../lib/oauth', () => ({
 	}),
 }));
 
+// El callback ya no mete los tokens en la cookie: crea la sesión en el servidor.
+const createSession = vi.fn().mockResolvedValue('22222222-2222-2222-2222-222222222222');
+
+vi.mock('@/services/auth/session.service', () => ({
+	sessionService: {
+		create: (userId: string, tokens: unknown) => createSession(userId, tokens),
+		resolve: vi.fn(),
+		rotateTokens: vi.fn(),
+		revoke: vi.fn(),
+	},
+}));
+
 import { createMockResponse } from '../../helpers/mock-next-response';
 
 describe('auth callback route', () => {
@@ -73,6 +85,18 @@ describe('auth callback route', () => {
 
 		expect(response.statusCode).toBe(302);
 		expect(response.redirectDestination).toBe('http://localhost:3000/');
-		expect(String(response.headers['Set-Cookie'])).toContain('canchago_session');
+
+		// Los tokens se guardan en el servidor, asociados al usuario...
+		expect(createSession).toHaveBeenCalledWith(
+			'11111111-1111-1111-1111-111111111111',
+			expect.objectContaining({ accessToken: 'access-token', refreshToken: 'refresh-token' }),
+		);
+
+		// ...y la cookie NO los lleva: sólo el id de sesión, muy por debajo del límite de 4096 bytes.
+		const setCookie = String(response.headers['Set-Cookie']);
+
+		expect(setCookie).toContain('canchago_session');
+		expect(setCookie).not.toContain('access-token');
+		expect(setCookie.length).toBeLessThan(4096);
 	});
 });

@@ -159,7 +159,7 @@ En Swagger, **`GET /roles`** → **Try it out** → en `organizationId` pegar:
 
 ---
 
-## Paso 7 · Dar el rol y volver a entrar
+## Paso 7 · Dar el rol, sin volver a entrar
 
 El docente ejecuta:
 
@@ -167,22 +167,22 @@ El docente ejecuta:
 yarn asignar-rol --email futbolista@canchago.local --rol futbolista
 ```
 
-Vuelvan a Swagger y ejecuten **`GET /auth/session`** otra vez.
-
-> **Sorpresa:** `"roles"` **sigue vacío**.
-
-### ¿Por qué?
-
-Porque la sesión se **cifró dentro de la cookie** en el instante del login. La cookie no sabe nada de lo que pasó después en la base de datos. Es una **sesión sin estado**.
-
-**Solución:** cerrar sesión y volver a entrar. Ahora sí:
+Vuelvan a Swagger y ejecuten **`GET /auth/session`** otra vez, **con la misma cookie y sin cerrar sesión**:
 
 ```json
-"roles": [{ "code": "futbolista", "name": "Futbolista", "organizationId": null }],
+"roles": [{ "code": "futbolista", "name": "Futbolista" }],
 "permissions": []
 ```
 
-> El rol **Futbolista** tiene `organizationId: null` porque es **global**: un futbolista puede jugar en cualquier organización. El **Gestor de Cancha**, en cambio, va atado a la suya.
+El rol aparece **al instante**.
+
+### ¿Por qué funciona sin re-login?
+
+Porque la cookie **no lleva al usuario dentro**: sólo lleva un **identificador de sesión** (unos 430 bytes). El usuario, sus roles y sus permisos se leen **de la base de datos en cada petición**.
+
+> **Pregunta para la clase:** ¿qué cuesta esto? Una consulta a la base en cada petición. Si el usuario viviera dentro de la cookie, no haría falta ninguna consulta… pero entonces el rol recién concedido **no aparecería hasta el siguiente login**. Es el intercambio entre sesiones **sin estado** y **con estado**. No hay almuerzo gratis.
+
+> El rol **Futbolista** es **global**: un futbolista puede jugar en cualquier organización. El **Gestor de Cancha**, en cambio, va atado a la suya.
 
 Tiene el rol, pero sigue sin permisos: `GET /roles` **sigue dando 403**. **Tener un rol no es tener un permiso.**
 
@@ -204,34 +204,57 @@ Ejecutar **`GET /auth/session`** de nuevo → **`401`**. Sesión cerrada.
 
 ---
 
-## Paso 9 · El fallo que casi nadie enseña
+## Paso 9 · Comprobar que el logout cierra de verdad
 
 Este paso es el que separa una clase de autenticación de una clase de **seguridad**.
 
-Repitan el ejercicio, pero **antes** de cerrar sesión, copien el valor de la cookie (DevTools → Application → Cookies → `canchago_session`).
+Cerrar sesión **no puede ser sólo borrar la cookie del navegador**. Si lo fuera, cualquiera que hubiese copiado ese valor seguiría entrando. Vamos a comprobar que aquí no pasa.
 
-Cierren sesión (`POST /auth/logout` → `204`). Y ahora, desde una terminal:
+Repitan el ejercicio, pero **antes** de cerrar sesión copien el valor de la cookie (DevTools → Application → Cookies → `canchago_session`).
+
+Cierren sesión (`POST /auth/logout` → `204`). Y ahora, desde una terminal, reenvíen a mano esa cookie:
 
 ```bash
 curl -i http://localhost:3000/api/auth/session \
   -H "Cookie: canchago_session=<el-valor-que-copiaron>"
 ```
 
-### Responde `200`. La sesión cerrada sigue funcionando.
+```
+401 Unauthorized
+{ "error": { "code": "UNAUTHORIZED", "message": "Session revoked or expired" } }
+```
 
-**No es un error del ejercicio: es una debilidad real de este backend.**
+### Lo interesante es *por qué* falla
 
-La cookie es un token **sellado y autocontenido**. El logout la borra **del navegador** y revoca el token en Keycloak, pero **no la invalida en el servidor**: no hay ninguna lista de sesiones revocadas. Quien haya copiado ese valor lo puede seguir usando durante **8 horas**.
+La cookie **sigue siendo criptográficamente válida**: el sello de `@hapi/iron` no ha caducado y el servidor puede descifrarla sin problema. Lo que ocurre es que, al descifrarla, encuentra un identificador de sesión que en la tabla `user_sessions` está **marcado como revocado**.
+
+El logout hace tres cosas, y sólo la segunda cierra la puerta de verdad:
+
+1. Revoca el refresh token en Keycloak.
+2. **Marca la sesión como revocada en la base de datos.**
+3. Borra la cookie del navegador.
 
 ### Para debatir
 
-- ¿De qué sirve el `HttpOnly` si el atacante consiguió la cookie por otra vía (una extensión maliciosa, un equipo compartido, un backup)?
-- ¿Cómo lo arreglarían? *(Pista: guardar las sesiones activas en base de datos o en Redis, y que el middleware `auth` consulte esa lista en cada petición.)*
-- ¿Qué se **pierde** al arreglarlo? *(Una consulta extra en cada petición. La comodidad de las sesiones sin estado no es gratis.)*
-- El schema de este proyecto ya tiene una tabla **`UserSession`** pensada exactamente para esto… **y hoy no la usa nadie.** Ábranla con `yarn prisma-studio`: está vacía.
+- ¿Qué habría pasado si la sesión viviera **entera dentro de la cookie**? *(Que el logout sería sólo cosmético: la cookie copiada seguiría valiendo hasta expirar. Es exactamente el fallo que tenía este backend antes de arreglarlo.)*
+- ¿Qué cuesta poder revocar? *(Una consulta a la base en cada petición.)*
+- ¿De qué sirve el `HttpOnly` si el atacante consiguió la cookie por otra vía (una extensión maliciosa, un equipo compartido, un backup)? *(De poco. Por eso hace falta poder revocar.)*
+- Abran `yarn prisma-studio` → tabla `user_sessions`. Verán su sesión, con su `revoked_at` puesto.
+
+---
+
+## Anexo · Dos bugs reales que salieron montando esta práctica
+
+Valen como lección, porque no son ejercicios inventados:
+
+**1. El login funcionaba con `curl` y fallaba en Chrome.** La cookie llevaba dentro los tres tokens de Keycloak y pesaba **5.336 bytes**. El límite del navegador es **4.096**, y Chrome descarta la cookie **en silencio**: sin error, sin aviso, sin nada en la consola. `curl` no aplica ese límite, así que las pruebas por terminal pasaban. Se arregló sacando los tokens a la tabla `user_sessions`: la cookie bajó a **429 bytes**.
+
+> **Moraleja:** que pase en `curl` no significa que funcione en un navegador.
+
+**2. La documentación mentía.** Decía "para iniciar sesión, pulsa Execute". Imposible: el login es un `302` a otro origen y el navegador lo bloquea por CORS. Nadie lo había probado nunca desde el navegador.
 
 ---
 
 ## Resumen de una frase
 
-**Autenticación** es la cookie que te dan al entrar. **Autorización** es lo que esa cookie te deja hacer. Y **cerrar sesión** es más difícil de lo que parece.
+**Autenticación** es la cookie que te dan al entrar. **Autorización** es lo que esa cookie te deja hacer. Y **cerrar sesión** significa que el servidor la olvide — no que el navegador la tire a la basura.

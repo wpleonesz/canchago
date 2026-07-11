@@ -126,12 +126,12 @@ yarn asignar-rol --email gestor@canchago.local --rol gestor-de-cancha
 yarn asignar-rol --email gestor@canchago.local --rol gestor-de-cancha --sede 9d2a6897-3c6d-4ccd-8e7f-1bbdc5e01605
 ```
 
-> **Importante:** la sesión se cifra dentro de la cookie en el momento del login. Un rol asignado después **no aparece hasta que el usuario cierre sesión y vuelva a entrar**. Es una consecuencia directa de tener sesiones sin estado, y es un buen punto de discusión en clase.
+> **Nota:** desde la feature 009 el rol aparece **de inmediato**, sin cerrar sesión: la cookie sólo lleva un id de sesión, y los roles se leen de la base en cada petición.
 
-Tras re-loguearse:
+Al consultar la sesión:
 
 ```json
-"roles": [{ "code": "futbolista", "name": "Futbolista", "organizationId": null }],
+"roles": [{ "code": "futbolista", "name": "Futbolista" }],
 "permissions": []
 ```
 
@@ -156,7 +156,7 @@ HTTP/1.1 403 Forbidden
 | **401** | No sé quién eres | `auth` |
 | **403** | Sé quién eres, pero no puedes | `access` |
 
-Cuando le concedas el permiso `roles.read` al rol Futbolista y el usuario vuelva a iniciar sesión, ese mismo `curl` responde **200**. (Verificado.)
+En cuanto le concedas el permiso `roles.read` al rol Futbolista, ese mismo `curl` responde **200** — sin necesidad de volver a iniciar sesión. (Verificado.)
 
 ---
 
@@ -171,16 +171,10 @@ HTTP/1.1 204 No Content
 Set-Cookie: canchago_session=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/
 ```
 
-Hace dos cosas: **revoca el refresh token en Keycloak** y **borra la cookie** del navegador. En el navegador, la siguiente llamada a `/api/auth/session` responde 401, porque ya no hay cookie que enviar.
+### El logout invalida la sesión de verdad
 
-### ⚠️ La trampa honesta que conviene enseñar
+Hace tres cosas: revoca el refresh token en Keycloak, **marca la sesión como revocada** en `user_sessions`, y borra la cookie.
 
-Si guardas el **valor** de la cookie antes del logout y lo reenvías a mano con `curl -H "Cookie: …"`, la API **sigue respondiendo 200**.
+Si copias el **valor** de la cookie antes del logout y lo reenvías a mano con `curl -H "Cookie: …"`, la API responde **`401 Session revoked or expired`**. La cookie sigue siendo criptográficamente válida, pero el servidor ya no reconoce esa sesión.
 
-No es un error del ejercicio: la cookie es un token *sellado* y **autocontenido** (`@hapi/iron`). El logout la borra del navegador, pero no la invalida en el servidor: no hay lista de sesiones revocadas. Quien haya copiado ese valor lo puede seguir usando hasta que expire (8 horas, `SESSION_COOKIE_MAX_AGE_SECONDS`).
-
-Es un caso real de libro para discutir con los alumnos:
-
-- Por eso las sesiones sin estado son cómodas pero difíciles de revocar.
-- El schema ya tiene una tabla `UserSession` pensada para esto… **que hoy no usa nadie**.
-- La solución sería persistir la sesión (o una lista de revocación en Redis) y que `auth` la consulte.
+> Esto **no** era así al principio: la sesión iba entera dentro de la cookie y el logout era cosmético. Ver la feature 009.

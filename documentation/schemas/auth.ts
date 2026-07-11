@@ -104,12 +104,19 @@ Un usuario recién autenticado llega así:
 
 **Está autenticado, pero no está autorizado a nada.** Ésa es la diferencia entre las dos palabras.
 
-Los roles se asignan aparte (\`yarn asignar-rol\`) y **no aparecen aquí hasta que el usuario cierre sesión y vuelva a entrar**: la sesión se cifra dentro de la cookie en el momento del login, así que no se entera de cambios posteriores en la base de datos.`;
+## Dónde vive realmente la sesión
+
+La cookie **sólo lleva un identificador de sesión** (unos 430 bytes). Los tokens OAuth se guardan cifrados en la tabla \`user_sessions\`, y el usuario, sus roles y sus permisos se leen de la base de datos **en cada petición**.
+
+Por eso un rol concedido con \`yarn asignar-rol\` aparece aquí **de inmediato**, sin cerrar sesión y volver a entrar.
+
+> **Por qué se diseñó así:** cuando los tres tokens (access + refresh + id) iban dentro de la cookie, ésta pesaba **5.336 bytes**, y el navegador **descarta en silencio** toda cookie de más de **4.096**. El login funcionaba con \`curl\` y fallaba en Chrome, sin ningún mensaje de error.`;
 
 const refreshDescription = `Renueva el access token cuando está próximo a expirar.
 
 **Comportamiento:**
-- Si el token expira en menos de 5 minutos → renueva y devuelve \`204\` con cookie actualizada.
+- Si el token expira en menos de 5 minutos → renueva los tokens y devuelve \`204\`.
+- Los tokens rotan **en la base de datos**, no en la cookie: el id de sesión no cambia, así que no se reemite ninguna cookie.
 - Si el token sigue vigente → devuelve \`204\` sin cambios.
 
 **Cómo probar desde esta documentación:**
@@ -125,19 +132,23 @@ const logoutDescription = `Cierra la sesión: revoca el token en el Identity Pro
 2. Fíjate en la cabecera de respuesta: \`Set-Cookie: canchago_session=; Max-Age=0\` — así se borra una cookie.
 3. Vuelve a \`GET /auth/session\` y pulsa **Execute** → ahora responde \`401\`. Ya no hay sesión.
 
-## ⚠️ Advertencia honesta: esto NO invalida la sesión en el servidor
+## El logout invalida la sesión de verdad
 
-La cookie es un token **sellado y autocontenido** (\`@hapi/iron\`). El logout la borra **del navegador**, pero no la anula en el servidor: no existe una lista de sesiones revocadas.
+Hace tres cosas, y conviene enumerarlas:
 
-Si alguien **copió el valor** de la cookie antes del logout y lo reenvía a mano:
+1. **Revoca el refresh token** en el Identity Provider.
+2. **Marca la sesión como revocada** en la tabla \`user_sessions\` (\`revoked_at\`).
+3. **Borra la cookie** del navegador.
+
+El paso 2 es el que importa. Comprueben que funciona: copien el valor de la cookie **antes** de cerrar sesión, cierren sesión, y reenvíenlo a mano:
 
 \`\`\`bash
 curl -i http://localhost:3000/api/auth/session -H "Cookie: canchago_session=<valor-viejo>"
 \`\`\`
 
-…la API **responde \`200\`** hasta que el token expire (8 h, \`SESSION_COOKIE_MAX_AGE_SECONDS\`).
+Responde **\`401 Session revoked or expired\`**. La cookie sigue siendo **criptográficamente válida** — el sello de \`@hapi/iron\` no ha caducado — pero el servidor ya no reconoce esa sesión.
 
-> **Para discutir en clase:** las sesiones sin estado son cómodas pero difíciles de revocar. La solución sería persistir la sesión (la tabla \`UserSession\` ya existe en el schema, pero hoy no la usa nadie) o llevar una lista de revocación en Redis que el middleware \`auth\` consulte.`;
+> **Para discutir en clase:** una sesión *sin estado* (todo dentro de la cookie) es cómoda y no cuesta consultas, pero **no se puede revocar**: quien copie la cookie la usa hasta que expire. Una sesión *con estado* cuesta una consulta por petición, y a cambio se puede cerrar de verdad. Este backend elige la segunda. No hay almuerzo gratis.`;
 
 registry.registerPath({
 	method: 'get',

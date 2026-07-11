@@ -49,7 +49,12 @@ const buildDisplayName = (
 
 const mapRoles = (
 	roles: Array<{ role: { id: string; code: string; name: string } }>,
-): SessionRole[] => roles.map(entry => entry.role);
+): SessionRole[] =>
+	roles.map(({ role }) => ({
+		id: role.id,
+		code: role.code,
+		name: role.name,
+	}));
 
 const mapPermissions = (
 	roles: Array<{
@@ -91,6 +96,29 @@ const loadUserWithAccess = async (userId: string) =>
 			},
 		},
 	});
+
+/**
+ * Carga el usuario con sus roles y permisos vigentes.
+ *
+ * El middleware `auth` la llama en CADA petición, en vez de leer al usuario de la cookie.
+ * Cuesta una consulta, y a cambio un rol o permiso concedido surte efecto de inmediato,
+ * sin obligar al usuario a cerrar sesión y volver a entrar.
+ */
+export const getSessionUser = async (userId: string): Promise<SessionUser | null> => {
+	const user = await loadUserWithAccess(userId);
+
+	if (!user) {
+		return null;
+	}
+
+	return {
+		id: user.id,
+		email: user.email,
+		name: buildDisplayName(user.profile?.firstName, user.profile?.lastName, user.email),
+		roles: mapRoles(user.userRoles),
+		permissions: mapPermissions(user.userRoles),
+	};
+};
 
 export const findOrSyncByOAuth = async (
 	oauthSubject: string,
