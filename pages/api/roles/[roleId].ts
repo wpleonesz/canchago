@@ -18,7 +18,9 @@ handler
 		const { roleId, organizationId } = req.query;
 
 		if (!organizationId || typeof organizationId !== 'string' || typeof roleId !== 'string') {
-			throw new ValidationError('roleId y organizationId requeridos');
+			throw new ValidationError(
+				'Faltan datos requeridos: identificador del rol y de la organización.',
+			);
 		}
 
 		try {
@@ -26,7 +28,7 @@ handler
 			res.status(200).json({ data: role });
 		} catch (error) {
 			if ((error as Error).message === 'Role not found') {
-				throw new NotFoundError('Rol no encontrado');
+				throw new NotFoundError('El rol solicitado no existe.');
 			}
 			throw error;
 		}
@@ -35,7 +37,9 @@ handler
 		const { roleId, organizationId } = req.query;
 
 		if (!organizationId || typeof organizationId !== 'string' || typeof roleId !== 'string') {
-			throw new ValidationError('roleId y organizationId requeridos');
+			throw new ValidationError(
+				'Faltan datos requeridos: identificador del rol y de la organización.',
+			);
 		}
 
 		const parsed = updateRoleInputSchema.safeParse(req.body);
@@ -52,7 +56,7 @@ handler
 			const err = error as Error;
 
 			if (err.message === 'Role not found') {
-				throw new NotFoundError('Rol no encontrado');
+				throw new NotFoundError('El rol solicitado no existe.');
 			}
 
 			if (err.message.includes('already exists')) {
@@ -66,7 +70,9 @@ handler
 		const { roleId, organizationId } = req.query;
 
 		if (!organizationId || typeof organizationId !== 'string' || typeof roleId !== 'string') {
-			throw new ValidationError('roleId y organizationId requeridos');
+			throw new ValidationError(
+				'Faltan datos requeridos: identificador del rol y de la organización.',
+			);
 		}
 
 		try {
@@ -76,7 +82,7 @@ handler
 			const err = error as Error;
 
 			if (err.message === 'Role not found') {
-				throw new NotFoundError('Rol no encontrado');
+				throw new NotFoundError('El rol solicitado no existe.');
 			}
 
 			throw err;

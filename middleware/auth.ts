@@ -39,7 +39,7 @@ export const auth = async (
 	const cookieValue = req.cookies[env.SESSION_COOKIE_NAME];
 
 	if (!cookieValue) {
-		throw new AuthenticationError('Missing session cookie');
+		throw new AuthenticationError();
 	}
 
 	// La cookie sólo trae el id de sesión. El usuario, sus roles y sus permisos se

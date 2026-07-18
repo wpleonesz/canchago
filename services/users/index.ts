@@ -43,7 +43,7 @@ export const getById = async (userId: string) => {
 	const user = await userData.record(userId).getUnique();
 
 	if (!user) {
-		throw new NotFoundError('User not found');
+		throw new NotFoundError('El usuario solicitado no existe.');
 	}
 
 	return {
@@ -62,7 +62,7 @@ export const update = async (userId: string, body: UpdateUserBody) => {
 	const existing = await userData.record(userId).getUnique();
 
 	if (!existing) {
-		throw new NotFoundError('User not found');
+		throw new NotFoundError('El usuario solicitado no existe.');
 	}
 
 	try {
@@ -97,7 +97,7 @@ export const remove = async (userId: string) => {
 	const existing = await userData.record(userId).getUnique();
 
 	if (!existing) {
-		throw new NotFoundError('User not found');
+		throw new NotFoundError('El usuario solicitado no existe.');
 	}
 
 	await userData.record(userId).remove();

@@ -13,13 +13,13 @@ const router = createRouter<NextApiRequest, NextApiResponse>();
 
 router.use(auth).post(async (req, res) => {
 	if (!req.session) {
-		throw new AuthenticationError('Missing session data');
+		throw new AuthenticationError('No hay una sesión activa.');
 	}
 
 	const refreshToken = req.session.tokens.refreshToken;
 
 	if (!refreshToken) {
-		throw new AuthenticationError('Session does not include a refresh token');
+		throw new AuthenticationError('La sesión no permite renovarse. Inicia sesión de nuevo.');
 	}
 
 	const expiresAt = new Date(req.session.tokens.expiresAt).getTime();

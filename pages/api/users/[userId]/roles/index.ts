@@ -38,7 +38,7 @@ handler
 
 		const user = await userService.getById(parsedParams.data.userId);
 		if (!user) {
-			throw new NotFoundError('User not found');
+			throw new NotFoundError('El usuario solicitado no existe.');
 		}
 
 		const roles = user.roles || [];
@@ -59,7 +59,7 @@ handler
 
 		const user = await userService.getById(parsedParams.data.userId);
 		if (!user) {
-			throw new NotFoundError('User not found');
+			throw new NotFoundError('El usuario solicitado no existe.');
 		}
 
 		for (const roleId of parsedBody.data.roleIds) {

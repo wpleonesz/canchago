@@ -1,9 +1,16 @@
 import { prisma } from '@/database/client';
 
+// El catalogo debe reflejar EXACTAMENTE los codigos que exigen los middlewares
+// access(...) en pages/api/. Si un codigo aqui no coincide con el que la ruta
+// verifica, el permiso "existe" en la base pero nunca se concede -> 403 eterno.
+// El modulo de usuarios usa el codigo en ingles (users) porque asi lo enforcan
+// las rutas de pages/api/users/*.
 const PERMISSIONS = [
-	{ module: 'usuarios', action: 'read', description: 'Leer usuarios' },
-	{ module: 'usuarios', action: 'write', description: 'Crear/actualizar usuarios' },
-	{ module: 'usuarios', action: 'delete', description: 'Eliminar usuarios' },
+	{ module: 'users', action: 'read', description: 'Leer usuarios' },
+	{ module: 'users', action: 'create', description: 'Crear usuarios' },
+	{ module: 'users', action: 'update', description: 'Actualizar usuarios' },
+	{ module: 'users', action: 'delete', description: 'Eliminar usuarios' },
+	{ module: 'users', action: 'manage', description: 'Gestionar roles de usuarios' },
 	{ module: 'organizaciones', action: 'read', description: 'Leer organizaciones' },
 	{ module: 'organizaciones', action: 'manage', description: 'Gestionar organizaciones' },
 	{ module: 'sedes', action: 'read', description: 'Leer sedes' },
@@ -13,7 +20,7 @@ const PERMISSIONS = [
 	{ module: 'permisos', action: 'read', description: 'Leer permisos' },
 ];
 
-async function main() {
+const main = async (): Promise<void> => {
 	console.log('🌱 Starting seed...');
 
 	for (const perm of PERMISSIONS) {
@@ -38,7 +45,7 @@ async function main() {
 	}
 
 	console.log('✅ Seed completado');
-}
+};
 
 main()
 	.catch(e => {

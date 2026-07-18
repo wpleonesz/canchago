@@ -94,7 +94,42 @@ const main = async (): Promise<void> => {
 		console.log(`✅ Creado: ${role.name} [${scope}] (${created.id})`);
 	}
 
-	console.log('\n✅ Roles base listos. Nacen SIN permisos: se otorgan despues.');
+	console.log('\n✅ Roles base listos.');
+
+	await grantAllPermissionsToAdmin();
+};
+
+/**
+ * El rol Administrador administra la plataforma completa, asi que recibe TODOS
+ * los permisos del catalogo (los crea `yarn seed`). Sin este paso los roles
+ * nacen sin permisos y cualquier endpoint protegido responde 403.
+ */
+const grantAllPermissionsToAdmin = async (): Promise<void> => {
+	const admin = await prisma.role.findFirst({
+		where: { code: 'administrador', deletedAt: null },
+	});
+
+	if (!admin) {
+		console.log('⏭️  No existe el rol Administrador; nada que otorgar.');
+		return;
+	}
+
+	const permissions = await prisma.permission.findMany({ select: { id: true, code: true } });
+
+	if (permissions.length === 0) {
+		console.log('⚠️  El catalogo de permisos esta vacio. Corre `yarn seed` primero.');
+		return;
+	}
+
+	for (const permission of permissions) {
+		await prisma.rolePermission.upsert({
+			where: { roleId_permissionId: { roleId: admin.id, permissionId: permission.id } },
+			create: { roleId: admin.id, permissionId: permission.id },
+			update: { granted: true },
+		});
+	}
+
+	console.log(`🔑 Administrador ahora tiene ${permissions.length} permisos.`);
 };
 
 main()

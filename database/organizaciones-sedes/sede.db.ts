@@ -76,7 +76,7 @@ export const create = async (organizationId: string, data: CreateSedeBody) => {
 		return venue;
 	} catch (error) {
 		if (isPrismaUniqueConstraintError(error)) {
-			throw new ConflictError('Sede name already exists in this organization');
+			throw new ConflictError('Ya existe una sede con ese nombre en esta organización.');
 		}
 
 		throw error;
@@ -91,7 +91,7 @@ export const record = (sedeId: string) => ({
 		});
 
 		if (!record || record.deletedAt) {
-			throw new NotFoundError('Sede not found');
+			throw new NotFoundError('La sede solicitada no existe.');
 		}
 
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -106,7 +106,7 @@ export const record = (sedeId: string) => ({
 		});
 
 		if (!venue || venue.deletedAt) {
-			throw new NotFoundError('Sede not found');
+			throw new NotFoundError('La sede solicitada no existe.');
 		}
 
 		try {
@@ -122,7 +122,7 @@ export const record = (sedeId: string) => ({
 			});
 		} catch (error) {
 			if (isPrismaUniqueConstraintError(error)) {
-				throw new ConflictError('Sede name already exists in this organization');
+				throw new ConflictError('Ya existe una sede con ese nombre en esta organización.');
 			}
 
 			throw error;
@@ -136,7 +136,7 @@ export const record = (sedeId: string) => ({
 		});
 
 		if (!venue || venue.deletedAt) {
-			throw new NotFoundError('Sede not found');
+			throw new NotFoundError('La sede solicitada no existe.');
 		}
 
 		return await prisma.venue.update({

@@ -27,7 +27,7 @@ handler.use(auth).delete(access('users.manage'), async (req, res): Promise<void>
 
 	const user = await userService.getById(parsed.data.userId);
 	if (!user) {
-		throw new NotFoundError('User not found');
+		throw new NotFoundError('El usuario solicitado no existe.');
 	}
 
 	await userService.removeRoleFromUser(parsed.data.userId, parsed.data.roleId);

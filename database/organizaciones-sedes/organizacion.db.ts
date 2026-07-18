@@ -77,7 +77,7 @@ export const create = async (data: CreateOrganizationBody) => {
 		return organization;
 	} catch (error) {
 		if (isPrismaUniqueConstraintError(error)) {
-			throw new ConflictError('Organization name already exists');
+			throw new ConflictError('Ya existe una organización con ese nombre.');
 		}
 
 		throw error;
@@ -92,7 +92,7 @@ export const record = (organizationId: string) => ({
 		});
 
 		if (!record || record.deletedAt) {
-			throw new NotFoundError('Organization not found');
+			throw new NotFoundError('La organización solicitada no existe.');
 		}
 
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -107,7 +107,7 @@ export const record = (organizationId: string) => ({
 		});
 
 		if (!organization || organization.deletedAt) {
-			throw new NotFoundError('Organization not found');
+			throw new NotFoundError('La organización solicitada no existe.');
 		}
 
 		try {
@@ -125,7 +125,7 @@ export const record = (organizationId: string) => ({
 			});
 		} catch (error) {
 			if (isPrismaUniqueConstraintError(error)) {
-				throw new ConflictError('Organization name already exists');
+				throw new ConflictError('Ya existe una organización con ese nombre.');
 			}
 
 			throw error;
@@ -139,7 +139,7 @@ export const record = (organizationId: string) => ({
 		});
 
 		if (!organization || organization.deletedAt) {
-			throw new NotFoundError('Organization not found');
+			throw new NotFoundError('La organización solicitada no existe.');
 		}
 
 		return await prisma.$transaction(async transaction => {

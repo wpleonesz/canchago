@@ -24,7 +24,7 @@ handler
 		const { organizationId } = req.query;
 
 		if (!organizationId || typeof organizationId !== 'string') {
-			throw new ValidationError('organizationId requerido en query parameters.');
+			throw new ValidationError('Falta el identificador de la organización.');
 		}
 
 		const result = await roleService.getRoles(
@@ -47,7 +47,7 @@ handler
 		const { organizationId } = req.query;
 
 		if (!organizationId || typeof organizationId !== 'string') {
-			throw new ValidationError('organizationId requerido en query parameters.');
+			throw new ValidationError('Falta el identificador de la organización.');
 		}
 
 		const parsed = createRoleInputSchema.safeParse({

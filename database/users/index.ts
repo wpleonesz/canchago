@@ -268,7 +268,7 @@ export const create = async (data: CreateUserBody) => {
 		return user;
 	} catch (error) {
 		if (isPrismaUniqueConstraintError(error)) {
-			throw new ConflictError('Email already exists');
+			throw new ConflictError('Ya existe un usuario con ese correo electrónico.');
 		}
 
 		throw error;

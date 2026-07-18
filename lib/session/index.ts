@@ -71,7 +71,7 @@ const unsealWithSecrets = async (value: string, ttlSeconds: number): Promise<unk
 		}
 	}
 
-	throw new AuthenticationError('Invalid or expired session');
+	throw new AuthenticationError('Tu sesión no es válida o ha expirado. Inicia sesión de nuevo.');
 };
 
 /** Sella el token set para guardarlo en base de datos: un volcado no expone los tokens. */
@@ -162,7 +162,7 @@ export const decryptTemporaryOAuthCookie = async (
 		}
 	}
 
-	throw new AuthenticationError('Invalid or expired OAuth state');
+	throw new AuthenticationError('La solicitud de inicio de sesión expiró. Intenta de nuevo.');
 };
 
 export const clearTemporaryOAuthCookie = (response: NextApiResponse): void => {

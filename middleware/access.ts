@@ -3,6 +3,7 @@ import type { NextHandler } from 'next-connect';
 
 import { AuthorizationError } from '@/errors/auth';
 import { env } from '@/lib/config/env';
+import { logger } from '@/lib/logger';
 
 export const access =
 	(...requiredPermissions: string[]) =>
@@ -20,7 +21,14 @@ export const access =
 		);
 
 		if (missingPermissions.length > 0) {
-			throw new AuthorizationError(`Missing permissions: ${missingPermissions.join(', ')}`);
+			// Los codigos de permiso son detalle interno: se registran para el equipo,
+			// pero al usuario final solo le llega un mensaje claro y sin jerga.
+			logger.warn(
+				{ userId: req.user?.id, missingPermissions },
+				'Acceso denegado por permisos faltantes',
+			);
+
+			throw new AuthorizationError();
 		}
 
 		await next();

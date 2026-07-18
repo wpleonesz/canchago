@@ -22,7 +22,9 @@ handler
 		throwValidationError(pagination);
 
 		if (!organizationId || typeof organizationId !== 'string' || typeof roleId !== 'string') {
-			throw new ValidationError('roleId y organizationId requeridos');
+			throw new ValidationError(
+				'Faltan datos requeridos: identificador del rol y de la organización.',
+			);
 		}
 
 		try {
@@ -45,7 +47,7 @@ handler
 			const err = error as Error;
 
 			if (err.message === 'Role not found') {
-				throw new NotFoundError('Rol no encontrado');
+				throw new NotFoundError('El rol solicitado no existe.');
 			}
 
 			throw err;
@@ -55,7 +57,9 @@ handler
 		const { roleId, organizationId } = req.query;
 
 		if (!organizationId || typeof organizationId !== 'string' || typeof roleId !== 'string') {
-			throw new ValidationError('roleId y organizationId requeridos');
+			throw new ValidationError(
+				'Faltan datos requeridos: identificador del rol y de la organización.',
+			);
 		}
 
 		const parsed = updateRolePermissionsSchema.safeParse(req.body);
@@ -65,7 +69,7 @@ handler
 			const role = await roleService.getRoleById(roleId, organizationId);
 
 			if (!role) {
-				throw new NotFoundError('Rol no encontrado');
+				throw new NotFoundError('El rol solicitado no existe.');
 			}
 
 			if (parsed.data.permissionIds.length > 0) {
@@ -81,7 +85,7 @@ handler
 			const err = error as Error;
 
 			if (err.message === 'Role not found') {
-				throw new NotFoundError('Rol no encontrado');
+				throw new NotFoundError('El rol solicitado no existe.');
 			}
 
 			throw err;

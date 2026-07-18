@@ -30,7 +30,7 @@ const parseTokenResponse = async (response: Response): Promise<OAuthTokenRespons
 		const errorMessage =
 			typeof body.error_description === 'string'
 				? body.error_description
-				: 'OAuth token exchange failed';
+				: 'No se pudo completar la autenticación con el proveedor.';
 		throw new AuthenticationError(errorMessage);
 	}
 
@@ -39,7 +39,7 @@ const parseTokenResponse = async (response: Response): Promise<OAuthTokenRespons
 	const expiresIn = body.expires_in;
 
 	if (typeof accessToken !== 'string' || typeof expiresIn !== 'number') {
-		throw new AuthenticationError('OAuth provider returned an invalid token payload');
+		throw new AuthenticationError('El proveedor de autenticación devolvió una respuesta inválida.');
 	}
 
 	return {
@@ -104,9 +104,7 @@ const createKeyResolver = (): JWTVerifyGetKey => {
 		return async () => importSPKI(publicKeyPem, 'RS256');
 	}
 
-	throw new AuthenticationError(
-		'Missing OAUTH_JWKS_URL or OAUTH_PUBLIC_KEY_PEM for ID token verification',
-	);
+	throw new AuthenticationError('Configuración de autenticación incompleta en el servidor.');
 };
 
 export const verifyIdToken = async (
@@ -122,7 +120,9 @@ export const verifyIdToken = async (
 	const nonce = result.payload.nonce;
 
 	if (typeof nonce !== 'string' || nonce !== metadata.nonce) {
-		throw new AuthenticationError('Invalid ID token nonce');
+		throw new AuthenticationError(
+			'La sesión de autenticación no es válida. Intenta iniciar sesión de nuevo.',
+		);
 	}
 
 	return result.payload as Record<string, unknown>;
@@ -163,6 +163,6 @@ export const revokeToken = async (token: string): Promise<void> => {
 	});
 
 	if (!response.ok) {
-		throw new AuthenticationError('OAuth token revocation failed');
+		throw new AuthenticationError('No se pudo cerrar la sesión con el proveedor.');
 	}
 };

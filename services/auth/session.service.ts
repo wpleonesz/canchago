@@ -28,13 +28,13 @@ export const sessionService = {
 		const session = await sessionDb.findActive(sessionId);
 
 		if (!session) {
-			throw new AuthenticationError('Session revoked or expired');
+			throw new AuthenticationError('Tu sesión ha expirado o fue cerrada. Inicia sesión de nuevo.');
 		}
 
 		const user = await getSessionUser(session.userId);
 
 		if (!user) {
-			throw new AuthenticationError('User no longer exists');
+			throw new AuthenticationError('El usuario de la sesión ya no existe.');
 		}
 
 		return {

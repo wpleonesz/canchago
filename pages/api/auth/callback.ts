@@ -28,23 +28,27 @@ router.get(async (req, res) => {
 	const temporaryCookie = req.cookies[env.SESSION_TEMP_COOKIE_NAME];
 
 	if (!code || !state) {
-		throw new AuthenticationError('Missing authorization code or state');
+		throw new AuthenticationError('Faltan datos para completar el inicio de sesión.');
 	}
 
 	if (!temporaryCookie) {
-		throw new AuthenticationError('Missing OAuth state cookie');
+		throw new AuthenticationError('La sesión de inicio de sesión expiró. Intenta de nuevo.');
 	}
 
 	const oauthState = await decryptTemporaryOAuthCookie(temporaryCookie);
 
 	if (oauthState.state !== state) {
-		throw new AuthenticationError('Invalid OAuth state');
+		throw new AuthenticationError(
+			'La solicitud de inicio de sesión no es válida. Intenta de nuevo.',
+		);
 	}
 
 	const tokens = await exchangeCode(code, oauthState.codeVerifier);
 
 	if (!tokens.idToken) {
-		throw new AuthenticationError('Missing ID token from provider');
+		throw new AuthenticationError(
+			'El proveedor de autenticación no devolvió la información necesaria.',
+		);
 	}
 
 	const claims = (await verifyIdToken(tokens.idToken, {
@@ -54,7 +58,9 @@ router.get(async (req, res) => {
 	})) as OAuthClaims;
 
 	if (!claims.sub || !claims.email || !claims.name) {
-		throw new AuthenticationError('Incomplete identity claims from provider');
+		throw new AuthenticationError(
+			'El proveedor de autenticación no devolvió los datos de identidad completos.',
+		);
 	}
 
 	const syncedUser = await findOrSyncByOAuth(claims.sub, claims.email, claims.name);
