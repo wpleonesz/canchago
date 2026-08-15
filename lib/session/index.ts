@@ -32,6 +32,14 @@ export type SessionTokenSet = {
 	tokenType?: string | null;
 	expiresAt: string;
 	nonce?: string | null;
+	/**
+	 * Qué cliente OAuth emitió estos tokens (`canchago-api` o `canchago-mobile`). Sin esto,
+	 * refresh/logout no saben con qué cliente hablarle a Keycloak y éste rechaza la
+	 * operación ("Token client and authorized client don't match") si se usa el equivocado.
+	 * Opcional por compatibilidad con sesiones creadas antes de esta feature (014):
+	 * ausente = cliente web confidencial, el comportamiento de siempre.
+	 */
+	clientId?: string;
 };
 
 /**

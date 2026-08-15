@@ -13,6 +13,9 @@ const envSchema = z.object({
 	OAUTH_CLIENT_ID: z.string().min(1),
 	OAUTH_CLIENT_SECRET: z.string().min(1),
 	OAUTH_REDIRECT_URI: z.string().url(),
+	// Cliente publico para la app movil (canchago-ionic, Capacitor): sin secreto, login con
+	// formulario nativo (Resource Owner Password Credentials) - ver pages/api/auth/mobile/login.ts.
+	OAUTH_MOBILE_CLIENT_ID: z.string().min(1),
 	OAUTH_LOGOUT_URL: z.string().url().optional(),
 	OAUTH_SCOPE: z.string().min(1).default('openid email profile offline_access'),
 	OAUTH_PUBLIC_KEY_PEM: z.string().min(1).optional(),

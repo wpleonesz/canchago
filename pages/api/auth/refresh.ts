@@ -30,7 +30,9 @@ router.use(auth).post(async (req, res) => {
 		return;
 	}
 
-	const refreshedTokens = await refreshAccessToken(refreshToken);
+	const refreshedTokens = await refreshAccessToken(refreshToken, {
+		clientId: req.session.tokens.clientId,
+	});
 
 	// Los tokens rotan en la base, no en la cookie: la cookie sólo lleva el id de sesión,
 	// que no cambia. Por eso aquí ya no hay que reemitir ninguna cookie.

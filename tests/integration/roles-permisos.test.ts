@@ -11,6 +11,7 @@ vi.hoisted(() => {
 	process.env.OAUTH_CLIENT_ID = 'client-id';
 	process.env.OAUTH_CLIENT_SECRET = 'client-secret';
 	process.env.OAUTH_REDIRECT_URI = 'http://localhost:3000/api/auth/callback';
+	process.env.OAUTH_MOBILE_CLIENT_ID = 'canchago-mobile';
 	process.env.OAUTH_SCOPE = 'openid email profile offline_access';
 	process.env.OAUTH_SUCCESS_REDIRECT_URL = 'http://localhost:3000/';
 	process.env.SESSION_SECRET = '0123456789abcdef0123456789abcdef';

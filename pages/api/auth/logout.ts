@@ -13,7 +13,7 @@ router.use(auth).post(async (req, res) => {
 	const tokenToRevoke = req.session?.tokens.refreshToken ?? req.session?.tokens.accessToken;
 
 	if (tokenToRevoke) {
-		await revokeToken(tokenToRevoke);
+		await revokeToken(tokenToRevoke, { clientId: req.session?.tokens.clientId });
 	}
 
 	// Invalida la sesión en el servidor. Sin esto, quien hubiera copiado el valor de la

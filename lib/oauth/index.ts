@@ -17,7 +17,8 @@ export type OAuthTokenResponse = {
 type OAuthMetadata = {
 	issuer: string;
 	audience: string;
-	nonce: string;
+	/** Solo lo trae Authorization Code + PKCE (handshake de redirección). ROPC no tiene nonce. */
+	nonce?: string;
 };
 
 const createBasicAuthHeader = (): string =>
@@ -93,6 +94,32 @@ export const exchangeCode = async (
 	return parseTokenResponse(response);
 };
 
+/**
+ * Resource Owner Password Credentials — solo para el cliente público móvil
+ * (`OAUTH_MOBILE_CLIENT_ID`, `directAccessGrantsEnabled: true` únicamente en ese cliente).
+ * El cliente web sigue exigiendo Authorization Code + PKCE — ver `exchangeCode`.
+ */
+export const passwordGrant = async (
+	username: string,
+	password: string,
+): Promise<OAuthTokenResponse> => {
+	const response = await fetch(env.OAUTH_TOKEN_URL, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/x-www-form-urlencoded',
+		},
+		body: new URLSearchParams({
+			grant_type: 'password',
+			username,
+			password,
+			client_id: env.OAUTH_MOBILE_CLIENT_ID,
+			scope: env.OAUTH_SCOPE,
+		}),
+	});
+
+	return parseTokenResponse(response);
+};
+
 const createKeyResolver = (): JWTVerifyGetKey => {
 	if (env.OAUTH_JWKS_URL) {
 		return createRemoteJWKSet(new URL(env.OAUTH_JWKS_URL));
@@ -117,48 +144,64 @@ export const verifyIdToken = async (
 		audience: metadata.audience,
 	});
 
-	const nonce = result.payload.nonce;
+	if (metadata.nonce !== undefined) {
+		const nonce = result.payload.nonce;
 
-	if (typeof nonce !== 'string' || nonce !== metadata.nonce) {
-		throw new AuthenticationError(
-			'La sesión de autenticación no es válida. Intenta iniciar sesión de nuevo.',
-		);
+		if (typeof nonce !== 'string' || nonce !== metadata.nonce) {
+			throw new AuthenticationError(
+				'La sesión de autenticación no es válida. Intenta iniciar sesión de nuevo.',
+			);
+		}
 	}
 
 	return result.payload as Record<string, unknown>;
 };
 
-export const refreshAccessToken = async (refreshToken: string): Promise<OAuthTokenResponse> => {
+type ClientOptions = {
+	/** Con qué cliente OAuth se emitieron los tokens — ver SessionTokenSet.clientId. */
+	clientId?: string;
+};
+
+export const refreshAccessToken = async (
+	refreshToken: string,
+	options: ClientOptions = {},
+): Promise<OAuthTokenResponse> => {
+	const clientId = options.clientId ?? env.OAUTH_CLIENT_ID;
+	const isPublicClient = options.clientId !== undefined && options.clientId !== env.OAUTH_CLIENT_ID;
+
 	const response = await fetch(env.OAUTH_TOKEN_URL, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
-			Authorization: createBasicAuthHeader(),
+			...(isPublicClient ? {} : { Authorization: createBasicAuthHeader() }),
 		},
 		body: new URLSearchParams({
 			grant_type: 'refresh_token',
 			refresh_token: refreshToken,
-			client_id: env.OAUTH_CLIENT_ID,
+			client_id: clientId,
 		}),
 	});
 
 	return parseTokenResponse(response);
 };
 
-export const revokeToken = async (token: string): Promise<void> => {
+export const revokeToken = async (token: string, options: ClientOptions = {}): Promise<void> => {
 	if (!env.OAUTH_REVOCATION_URL) {
 		return;
 	}
+
+	const clientId = options.clientId ?? env.OAUTH_CLIENT_ID;
+	const isPublicClient = options.clientId !== undefined && options.clientId !== env.OAUTH_CLIENT_ID;
 
 	const response = await fetch(env.OAUTH_REVOCATION_URL, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/x-www-form-urlencoded',
-			Authorization: createBasicAuthHeader(),
+			...(isPublicClient ? {} : { Authorization: createBasicAuthHeader() }),
 		},
 		body: new URLSearchParams({
 			token,
-			client_id: env.OAUTH_CLIENT_ID,
+			client_id: clientId,
 		}),
 	});
 

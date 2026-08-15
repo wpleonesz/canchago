@@ -36,16 +36,24 @@ export const auth = async (
 		return;
 	}
 
-	const cookieValue = req.cookies[env.SESSION_COOKIE_NAME];
+	// El cliente móvil (sin cookie utilizable dentro de su WebView empaquetado) manda el
+	// mismo payload sellado vía `Authorization: Bearer <token>` — ver feature 014. Se prueba
+	// primero porque si viene, es la fuente de verdad explícita del cliente.
+	const authorizationHeader = req.headers.authorization;
+	const bearerToken = authorizationHeader?.startsWith('Bearer ')
+		? authorizationHeader.slice('Bearer '.length)
+		: undefined;
 
-	if (!cookieValue) {
+	const sealedValue = bearerToken ?? req.cookies[env.SESSION_COOKIE_NAME];
+
+	if (!sealedValue) {
 		throw new AuthenticationError();
 	}
 
-	// La cookie sólo trae el id de sesión. El usuario, sus roles y sus permisos se
+	// El payload sellado sólo trae el id de sesión. El usuario, sus roles y sus permisos se
 	// leen de la base en cada petición, así que un permiso concedido surte efecto
 	// de inmediato, y una sesión revocada deja de valer al instante.
-	const { sessionId } = await decrypt(cookieValue);
+	const { sessionId } = await decrypt(sealedValue);
 	const session = await sessionService.resolve(sessionId);
 
 	req.session = session;

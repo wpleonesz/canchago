@@ -1,0 +1,24 @@
+// Workspace multi-root: DOS proyectos independientes, NO un monorepo.
+//
+//   canchago        → BACKEND (Next.js Pages Router + Prisma). Fuente de verdad del dominio,
+//                      los endpoints, los modelos y las reglas de negocio.
+//   canchago-ionic   → FRONTEND (Ionic + React + TypeScript + Capacitor). Cliente móvil que
+//                      consume el backend; no reimplementa su lógica.
+//
+// Cada carpeta tiene su propia constitución para agentes IA (CLAUDE.md → AGENTS.md) con sus
+// propias reglas de stack, capas y límites — son distintas entre sí, no asumas que las de un
+// proyecto aplican al otro. Por defecto, `canchago` es read-only para trabajo de frontend salvo
+// instrucción explícita del usuario.
+{
+	"folders": [
+		{
+			"name": "canchago — backend (Next.js, fuente de verdad)",
+			"path": "."
+		},
+		{
+			"name": "canchago-ionic — frontend (Ionic/React, cliente móvil)",
+			"path": "../canchago-ionic"
+		}
+	],
+	"settings": {}
+}

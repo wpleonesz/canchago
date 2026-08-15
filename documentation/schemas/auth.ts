@@ -22,12 +22,29 @@ export const SessionResponseSchema = z.object({
 	permissions: z.array(PermissionSchema),
 });
 
+const MobileLoginRequestSchema = z.object({
+	username: z.string(),
+	password: z.string(),
+});
+
+const MobileLoginResponseSchema = z.object({
+	sessionToken: z.string(),
+	expiresAt: z.string(),
+});
+
 registry.register('SessionResponse', SessionResponseSchema);
+registry.register('MobileLoginRequest', MobileLoginRequestSchema);
+registry.register('MobileLoginResponse', MobileLoginResponseSchema);
 registry.register('ErrorResponse', ErrorResponseSchema);
 registry.registerComponent('securitySchemes', 'cookieAuth', {
 	type: 'apiKey',
 	in: 'cookie',
 	name: 'canchago_session',
+});
+registry.registerComponent('securitySchemes', 'bearerAuth', {
+	type: 'http',
+	scheme: 'bearer',
+	description: 'Usado por el cliente móvil (canchago-ionic) — ver feature 014.',
 });
 
 const errorResponses = {
@@ -224,6 +241,53 @@ registry.registerPath({
 		204: {
 			description: 'Sesión eliminada',
 		},
+		401: errorResponses[401],
+	},
+});
+
+const mobileLoginDescription = `Inicia sesión con usuario/contraseña directos desde la app móvil empaquetada (Capacitor), usando el cliente **público** \`canchago-mobile\` con Resource Owner Password Credentials (ROPC).
+
+**Decisión de producto explícita:** la app móvil pide usuario y contraseña en un formulario nativo propio (no abre Keycloak en un navegador aparte) — por eso \`canchago-mobile\` es el único cliente del realm con \`directAccessGrantsEnabled: true\`. El cliente web (\`canchago-api\`) sigue exigiendo Authorization Code + PKCE sin excepción.
+
+**Qué hace, en orden:**
+
+1. Envía \`username\`/\`password\` a Keycloak como grant \`password\` (ROPC) con el cliente público \`canchago-mobile\`.
+2. Si Keycloak rechaza las credenciales, responde \`401\` con un mensaje genérico (\`"Usuario o contraseña incorrectos."\`) — nunca el detalle exacto de Keycloak, para no facilitar enumeración de cuentas.
+3. Verifica el \`id_token\` devuelto (firma, issuer, audience = \`canchago-mobile\`) — sin \`nonce\`, porque ROPC no tiene handshake de redirección al que fijárselo.
+4. Crea o sincroniza el usuario, igual que \`/auth/callback\`.
+5. Crea la sesión en \`user_sessions\` (misma tabla que el flujo web) y devuelve el mismo payload sellado que normalmente viaja en la cookie, esta vez en el body: \`{ sessionToken, expiresAt }\`.
+
+El cliente guarda \`sessionToken\` en almacenamiento seguro nativo y lo reenvía como \`Authorization: Bearer <sessionToken>\` en el resto de llamadas — incluidas \`/auth/session\`, \`/auth/refresh\` y \`/auth/logout\`, que aceptan Bearer exactamente igual que cookie.
+
+> **Riesgo aceptado explícitamente:** ROPC expone la contraseña al código de la app (no solo a Keycloak), pierde compatibilidad sencilla con MFA/social login futuro, y es justo lo que \`AGENTS.md\` §10 prohíbe por defecto ("Nunca... Resource Owner Password"). Se activó únicamente para \`canchago-mobile\`, con acuerdo explícito del producto, no como negligencia.`;
+
+registry.registerPath({
+	method: 'post',
+	path: '/auth/mobile/login',
+	tags: ['Auth'],
+	security: [],
+	description: mobileLoginDescription,
+	request: {
+		body: {
+			content: {
+				'application/json': {
+					schema: MobileLoginRequestSchema,
+				},
+			},
+		},
+	},
+	responses: {
+		200: {
+			description: 'Sesión creada',
+			content: {
+				'application/json': {
+					schema: z.object({
+						data: MobileLoginResponseSchema,
+					}),
+				},
+			},
+		},
+		400: errorResponses[400],
 		401: errorResponses[401],
 	},
 });

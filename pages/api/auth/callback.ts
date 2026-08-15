@@ -74,6 +74,7 @@ router.get(async (req, res) => {
 		tokenType: tokens.tokenType,
 		expiresAt: new Date(Date.now() + tokens.expiresIn * 1000).toISOString(),
 		nonce: oauthState.nonce,
+		clientId: env.OAUTH_CLIENT_ID,
 	});
 
 	const cookiePayload: SessionCookiePayload = {

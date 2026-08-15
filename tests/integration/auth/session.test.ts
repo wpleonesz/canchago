@@ -11,6 +11,7 @@ vi.hoisted(() => {
 	process.env.OAUTH_CLIENT_ID = 'client-id';
 	process.env.OAUTH_CLIENT_SECRET = 'client-secret';
 	process.env.OAUTH_REDIRECT_URI = 'http://localhost:3000/api/auth/callback';
+	process.env.OAUTH_MOBILE_CLIENT_ID = 'canchago-mobile';
 	process.env.OAUTH_SCOPE = 'openid email profile offline_access';
 	process.env.OAUTH_SUCCESS_REDIRECT_URL = 'http://localhost:3000/';
 	process.env.SESSION_SECRET = '0123456789abcdef0123456789abcdef';
@@ -89,6 +90,50 @@ describe('auth session route', () => {
 				name: 'User Example',
 			},
 		});
+	});
+
+	it('returns the current session when authenticated via Authorization: Bearer (cliente móvil, feature 014)', async () => {
+		const { encrypt } = await import('../../../lib/session');
+		const handler = (await import('../../../pages/api/auth/session')).default;
+		const response = createMockResponse();
+
+		resolve.mockResolvedValue({
+			sessionId: SESSION_ID,
+			user: {
+				id: '11111111-1111-1111-1111-111111111111',
+				email: 'user@example.com',
+				name: 'User Example',
+				roles: [],
+				permissions: [],
+			},
+			tokens: {
+				accessToken: 'access-token',
+				expiresAt: new Date(Date.now() + 60_000).toISOString(),
+				clientId: 'canchago-mobile',
+			},
+			createdAt: new Date().toISOString(),
+		});
+
+		const sessionToken = await encrypt({
+			sessionId: SESSION_ID,
+			createdAt: new Date().toISOString(),
+		});
+
+		// Sin cookie alguna — solo el header Authorization, como haría el cliente móvil.
+		await handler(
+			{
+				method: 'GET',
+				url: '/api/auth/session',
+				cookies: {},
+				query: {},
+				headers: { authorization: `Bearer ${sessionToken}` },
+			} as never,
+			response,
+		);
+
+		expect(resolve).toHaveBeenCalledWith(SESSION_ID);
+		expect(response.statusCode).toBe(200);
+		expect(response.body).toMatchObject({ data: { email: 'user@example.com' } });
 	});
 
 	it('rejects a cookie whose session was revoked on the server', async () => {
