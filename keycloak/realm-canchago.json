@@ -135,6 +135,24 @@
       "realmRoles": [
         "default-roles-canchago"
       ]
+    },
+    {
+      "username": "admin",
+      "email": "admin@canchago.local",
+      "firstName": "Admin",
+      "lastName": "Prueba",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-canchago"
+      ]
     }
   ]
 }

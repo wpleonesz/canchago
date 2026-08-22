@@ -39,7 +39,31 @@ export const userParamsSchema = z.object({
 	userId: z.string().uuid(VALIDATION_MESSAGES.UUID),
 });
 
+export const userRolesQuerySchema = z.object({
+	page: z.coerce.number().int().min(1, VALIDATION_MESSAGES.MIN_VALUE(1)).optional(),
+	pageSize: z.coerce
+		.number()
+		.int()
+		.min(1, VALIDATION_MESSAGES.MIN_VALUE(1))
+		.max(100, VALIDATION_MESSAGES.MAX_VALUE(100))
+		.optional(),
+});
+
+export const assignUserRolesSchema = z.object({
+	roleIds: z
+		.array(z.string().uuid(VALIDATION_MESSAGES.UUID))
+		.min(1, VALIDATION_MESSAGES.REQUIRED)
+		.refine(roleIds => new Set(roleIds).size === roleIds.length, {
+			message: 'roleIds no puede contener valores duplicados.',
+		}),
+});
+
+export const userRoleParamsSchema = userParamsSchema.extend({
+	roleId: z.string().uuid(VALIDATION_MESSAGES.UUID),
+});
+
 export type CreateUserBody = z.infer<typeof createUserSchema>;
 export type UpdateUserBody = z.infer<typeof updateUserSchema>;
 export type UserQueryParams = z.infer<typeof userQuerySchema>;
 export type UserParams = z.infer<typeof userParamsSchema>;
+export type UserRolesQuery = z.infer<typeof userRolesQuerySchema>;

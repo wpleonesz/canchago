@@ -178,6 +178,7 @@ model UserRole {
   venue        Venue?        @relation(fields: [venueId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, roleId])
   @@index([organizationId, venueId])
   @@map("user_roles")
 }
