@@ -110,26 +110,125 @@ docker compose down
 docker compose up -d
 ```
 
-### 6. Migrar y sembrar
+### 6. Aplicar migraciones y ejecutar las semillas obligatorias
+
+Una **semilla** (_seed_) introduce los datos mínimos que la aplicación necesita para funcionar. En Canchago hay dos semillas diferentes y deben ejecutarse en este orden, después de las migraciones:
 
 ```bash
+# 1. Crear o actualizar la estructura de tablas en desarrollo.
 yarn migrate-dev
+
+# 2. Crear el catálogo de permisos que comprueban los endpoints.
+yarn seed
+
+# 3. Crear los roles base y relacionar Administrador con todos los permisos.
+yarn seed-dev
+```
+
+No omita ni invierta los dos últimos comandos: `seed-dev` busca los permisos creados por `yarn seed`. Si el catálogo está vacío, crea los roles, pero muestra una advertencia y el rol Administrador queda sin permisos.
+
+#### Qué crea exactamente `yarn seed`
+
+Ejecuta `prisma/seed.ts` a través de la configuración oficial de Prisma y crea estos 12 permisos:
+
+- Usuarios: `users.read`, `users.create`, `users.update`, `users.delete` y `users.manage`.
+- Organizaciones: `organizaciones.read` y `organizaciones.manage`.
+- Sedes: `sedes.read` y `sedes.manage`.
+- Roles: `roles.read` y `roles.manage`.
+- Permisos: `permisos.read`.
+
+La semilla consulta cada código antes de crearlo. Puede volver a ejecutarla: los permisos existentes se conservan y aparecen en la terminal como `Permiso ya existe`.
+
+#### Qué crea exactamente `yarn seed-dev`
+
+Ejecuta `prisma/seed-dev.ts` y prepara datos de desarrollo:
+
+1. Reutiliza la organización activa llamada `Cancha 2` si existe.
+2. Si no existe, reutiliza la primera organización activa disponible.
+3. Si la base todavía no tiene organizaciones, crea `Canchago Demo` con estado `ACTIVE`.
+4. Crea los roles globales `Futbolista` (`futbolista`) y `Administrador` (`administrador`).
+5. Crea `Gestor de Cancha` (`gestor-de-cancha`) asociado con la organización resuelta anteriormente.
+6. Concede al rol `Administrador` todos los permisos existentes en el catálogo.
+
+También es segura para repetición: busca los roles activos antes de crearlos y usa una operación `upsert` para las relaciones entre Administrador y permisos. Conviene repetir ambas semillas cuando una migración o feature añada permisos nuevos:
+
+```bash
 yarn seed
 yarn seed-dev
 ```
 
-- `migrate-dev` aplica migraciones existentes en desarrollo y puede crear una si cambió el schema.
-- `seed` crea el catálogo de permisos.
-- `seed-dev` crea los roles Futbolista, Administrador y Gestor de Cancha, una organización demo si hace falta, y concede permisos al Administrador.
+#### Verificar las semillas
 
-En despliegues use `yarn migrate-deploy`, que solo aplica migraciones versionadas. No sustituya migraciones por `prisma db push`.
+Revise primero que ambos comandos terminen con sus mensajes de confirmación y después abra Prisma Studio:
 
 ```bash
 yarn prisma migrate status
 yarn prisma-studio
 ```
 
-El segundo comando abre un explorador local; ciérrelo con `Ctrl+C`. Prisma no crea contraseñas: viven en Keycloak.
+En `http://localhost:5555`, compruebe:
+
+- `Permission`: 12 códigos base.
+- `Role`: `futbolista`, `administrador` y `gestor-de-cancha`.
+- `RolePermission`: relaciones del rol Administrador con todos los permisos.
+- `Organization`: al menos una organización activa para el rol de gestor.
+
+Prisma Studio se detiene con `Ctrl+C`. No edite datos compartidos desde Studio sin comprender su alcance.
+
+#### Crear el primer superadministrador
+
+Las semillas crean el **rol** Administrador, pero no crean ni privilegian automáticamente a una persona. Keycloak gestiona identidades y contraseñas; PostgreSQL solo conoce al usuario después de que se registra o inicia sesión por primera vez.
+
+El procedimiento de bootstrap es:
+
+1. Inicie Keycloak y el backend.
+
+   ```bash
+   docker compose up -d
+   yarn dev
+   ```
+
+2. Inicie sesión una vez con `administrador` / `canchago123`, usando el frontend o `http://localhost:3000/api/auth/login`. Esto sincroniza `administrador@canchago.local` en PostgreSQL. Después cierre sesión.
+
+3. En otra terminal, desde `canchago/`, asigne el rol global:
+
+   ```bash
+   yarn asignar-rol --email administrador@canchago.local --rol administrador
+   ```
+
+4. Inicie sesión nuevamente. La nueva sesión cargará el rol y sus permisos. Una sesión creada antes de la asignación no se actualiza automáticamente.
+
+`yarn asignar-rol` es la única vía soportada para aprovisionar el primer Administrador; no existe un endpoint público de bootstrap. El comando es idempotente: repetir la misma asignación y alcance no crea otra fila.
+
+Para preparar las otras cuentas didácticas, primero inicie sesión una vez con cada cuenta y después ejecute:
+
+```bash
+yarn asignar-rol --email futbolista@canchago.local --rol futbolista
+yarn asignar-rol --email gestor@canchago.local --rol gestor-de-cancha
+```
+
+El rol de gestor adopta por defecto la organización a la que pertenece su definición. Para fijar explícitamente el alcance, use UUID reales obtenidos en Prisma Studio:
+
+```bash
+yarn asignar-rol \
+  --email gestor@canchago.local \
+  --rol gestor-de-cancha \
+  --organizacion <UUID-ORGANIZACION>
+
+yarn asignar-rol \
+  --email gestor@canchago.local \
+  --rol gestor-de-cancha \
+  --organizacion <UUID-ORGANIZACION> \
+  --sede <UUID-SEDE>
+```
+
+Una sede solo puede asignarse junto con su organización y debe pertenecer a ella. Tras cualquier cambio de rol, cierre sesión y vuelva a entrar.
+
+> El registro público actual asigna automáticamente `Futbolista` a las cuentas nuevas de ese tipo. Las cuentas didácticas importadas directamente por el realm de Keycloak siguen necesitando su primera sincronización y la asignación manual anterior.
+
+#### Desarrollo frente a despliegue
+
+En despliegues use `yarn migrate-deploy`, que aplica únicamente migraciones versionadas. `seed-dev` contiene datos de laboratorio y no debe ejecutarse automáticamente en producción. Defina un proceso explícito y auditado para permisos, roles y primer administrador del entorno real. No use `prisma db push` como sustituto de migraciones.
 
 ## Ejecutar y verificar
 
