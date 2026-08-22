@@ -8,6 +8,7 @@
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": false,
   "editUsernameAllowed": false,
+  "passwordPolicy": "length(8) and notUsername",
   "accessTokenLifespan": 300,
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
@@ -79,9 +80,41 @@
       "optionalClientScopes": [
         "offline_access"
       ]
+    },
+    {
+      "clientId": "canchago-registration-service",
+      "name": "Canchago Registration Service",
+      "description": "Cliente de servicio (client_credentials) usado solo por el backend para crear usuarios en Keycloak durante el registro publico - ver spec 016. Sin flujos de usuario: no es para login, solo para la API de administracion de Keycloak.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "canchago-registration-dev-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "redirectUris": [],
+      "webOrigins": [],
+      "defaultClientScopes": [
+        "openid",
+        "web-origins"
+      ],
+      "optionalClientScopes": []
     }
   ],
   "users": [
+    {
+      "username": "service-account-canchago-registration-service",
+      "enabled": true,
+      "serviceAccountClientId": "canchago-registration-service",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users"
+        ]
+      }
+    },
     {
       "username": "futbolista",
       "email": "futbolista@canchago.local",
@@ -146,7 +179,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "admin",
+          "value": "admin1234",
           "temporary": false
         }
       ],

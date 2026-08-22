@@ -32,9 +32,49 @@ const MobileLoginResponseSchema = z.object({
 	expiresAt: z.string(),
 });
 
+const RegisterOrganizationInputSchema = z.object({
+	name: z.string().min(1).max(150),
+	legalName: z.string().max(200).optional(),
+	taxIdentification: z.string().max(30).optional(),
+	email: z.string().email().optional(),
+	phone: z.string().max(20).optional(),
+	domain: z.string().max(255).optional(),
+});
+
+const RegisterVenueInputSchema = z.object({
+	name: z.string().min(1).max(150),
+	address: z.string().max(500).optional(),
+	phone: z.string().max(20).optional(),
+	email: z.string().email().optional(),
+});
+
+const RegisterRequestSchema = z.object({
+	email: z.string().email(),
+	password: z.string().min(8),
+	firstName: z.string().min(1).max(100),
+	lastName: z.string().min(1).max(100),
+	accountType: z.enum(['futbolista', 'gestor-de-cancha']),
+	organization: RegisterOrganizationInputSchema.optional(),
+	venue: RegisterVenueInputSchema.optional(),
+});
+
+const RegisterResponseSchema = z.object({
+	accountType: z.enum(['futbolista', 'gestor-de-cancha']),
+	user: z.object({
+		id: z.string().uuid(),
+		email: z.string().email(),
+		firstName: z.string(),
+		lastName: z.string(),
+	}),
+	accessRequestId: z.string().uuid().optional(),
+	organizationStatus: z.literal('PENDING_APPROVAL').optional(),
+});
+
 registry.register('SessionResponse', SessionResponseSchema);
 registry.register('MobileLoginRequest', MobileLoginRequestSchema);
 registry.register('MobileLoginResponse', MobileLoginResponseSchema);
+registry.register('RegisterRequest', RegisterRequestSchema);
+registry.register('RegisterResponse', RegisterResponseSchema);
 registry.register('ErrorResponse', ErrorResponseSchema);
 registry.registerComponent('securitySchemes', 'cookieAuth', {
 	type: 'apiKey',
@@ -289,5 +329,79 @@ registry.registerPath({
 		},
 		400: errorResponses[400],
 		401: errorResponses[401],
+	},
+});
+
+const registerDescription = `Registro público — crea una cuenta real, sin sesión previa (feature 016).
+
+**Dos tipos de cuenta, comportamiento muy distinto:**
+
+- **\`futbolista\`** — se activa de inmediato con el rol global \`Futbolista\`. Puede iniciar sesión justo después.
+- **\`gestor-de-cancha\`** — requiere además \`organization\` y \`venue\` en el body. Crea la organización y su primera sede en \`status: 'PENDING_APPROVAL'\`, y una solicitud de acceso — **sin asignar ningún rol todavía**. El usuario puede iniciar sesión, pero no tiene ningún permiso hasta que un Administrador apruebe la solicitud (\`POST /organizaciones/access-requests/{requestId}/approve\`).
+
+**Seguridad:**
+- La contraseña se crea directamente en Keycloak (nunca se guarda en la base de Canchago) usando un cliente de servicio de mínimo privilegio (solo \`manage-users\`).
+- Límite de tasa por IP y por email — excederlo responde \`429\`.
+- Si la creación en Keycloak tiene éxito pero el paso en Canchago falla, el usuario de Keycloak se revierte automáticamente.`;
+
+registry.registerPath({
+	method: 'post',
+	path: '/auth/register',
+	tags: ['Auth'],
+	security: [],
+	description: registerDescription,
+	request: {
+		body: {
+			content: {
+				'application/json': {
+					schema: RegisterRequestSchema,
+					examples: {
+						futbolista: {
+							value: {
+								email: 'jugador@ejemplo.com',
+								password: 'contraseñaSegura123',
+								firstName: 'Juan',
+								lastName: 'Pérez',
+								accountType: 'futbolista',
+							},
+						},
+						gestorDeCancha: {
+							value: {
+								email: 'gestor@ejemplo.com',
+								password: 'contraseñaSegura123',
+								firstName: 'Ana',
+								lastName: 'Gómez',
+								accountType: 'gestor-de-cancha',
+								organization: { name: 'Mi Complejo Deportivo' },
+								venue: { name: 'Sede Principal', address: 'Av. Siempre Viva 123' },
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+	responses: {
+		201: {
+			description: 'Cuenta creada',
+			content: {
+				'application/json': {
+					schema: z.object({ data: RegisterResponseSchema }),
+				},
+			},
+		},
+		400: errorResponses[400],
+		409: {
+			description: 'El correo ya existe en Keycloak o en Canchago',
+			content: { 'application/json': { schema: ErrorResponseSchema } },
+		},
+		422: {
+			description: 'La contraseña no cumple la política del realm',
+			content: { 'application/json': { schema: ErrorResponseSchema } },
+		},
+		429: {
+			description: 'Límite de intentos de registro excedido',
+			content: { 'application/json': { schema: ErrorResponseSchema } },
+		},
 	},
 });

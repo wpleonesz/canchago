@@ -4,9 +4,12 @@ import { BusinessRuleError } from '@/errors/business-rule-error';
 import { ConflictError } from '@/errors/conflict-error';
 import { NotFoundError } from '@/errors/not-found-error';
 import type { SessionUser } from '@/lib/session';
+import { normalizeAvatar } from '@/lib/images/avatar';
 import type {
 	CreateUserBody,
 	UpdateAdminUserProfileBody,
+	UpdateOwnAvatarBody,
+	UpdateOwnProfileBody,
 	UpdateUserBody,
 	UserQueryParams,
 } from '@/validations/users';
@@ -149,6 +152,80 @@ export const updateAdminProfile = async (
 	throw new ConflictError('No fue posible actualizar el perfil.');
 };
 
+const mapOwnProfile = (
+	profile: NonNullable<Awaited<ReturnType<typeof userData.getOwnProfile>>>,
+) => ({
+	phone: profile.phone,
+	facebookUrl: profile.facebookUrl,
+	instagramUrl: profile.instagramUrl,
+	linkedinUrl: profile.linkedinUrl,
+	xUrl: profile.xUrl,
+	githubUrl: profile.githubUrl,
+	tiktokUrl: profile.tiktokUrl,
+	websiteUrl: profile.websiteUrl,
+	hasAvatar: profile.avatarMimeType === 'image/webp',
+	avatarUpdatedAt: profile.avatarUpdatedAt,
+	profileUpdatedAt: profile.updatedAt,
+});
+
+export const getOwnProfile = async (userId: string) => {
+	const profile = await userData.getOwnProfile(userId);
+
+	if (!profile) {
+		throw new NotFoundError('El perfil del usuario autenticado no existe.');
+	}
+
+	return mapOwnProfile(profile);
+};
+
+export const updateOwnProfile = async (userId: string, body: UpdateOwnProfileBody) => {
+	const profile = await userData.updateOwnProfile(userId, body);
+
+	if (!profile) {
+		const existing = await userData.getOwnProfile(userId);
+		if (!existing) {
+			throw new NotFoundError('El perfil del usuario autenticado no existe.');
+		}
+
+		throw new ConflictError(
+			'El perfil fue modificado en otra sesión. Recarga los datos antes de guardar.',
+		);
+	}
+
+	return mapOwnProfile(profile);
+};
+
+export const getOwnAvatar = async (userId: string) => {
+	const avatar = await userData.getOwnAvatar(userId);
+
+	if (!avatar?.avatarData || avatar.avatarMimeType !== 'image/webp') {
+		throw new NotFoundError('El usuario no tiene una fotografía de perfil.');
+	}
+
+	return {
+		data: avatar.avatarData,
+		mimeType: 'image/webp' as const,
+		updatedAt: avatar.avatarUpdatedAt,
+	};
+};
+
+export const updateOwnAvatar = async (userId: string, body: UpdateOwnAvatarBody) => {
+	const existing = await userData.getOwnProfile(userId);
+	if (!existing) {
+		throw new NotFoundError('El perfil del usuario autenticado no existe.');
+	}
+
+	const avatar = await normalizeAvatar(body);
+	return userData.updateOwnAvatar(userId, avatar);
+};
+
+export const removeOwnAvatar = async (userId: string): Promise<void> => {
+	const result = await userData.removeOwnAvatar(userId);
+	if (result.count === 0) {
+		throw new NotFoundError('El perfil del usuario autenticado no existe.');
+	}
+};
+
 export const update = async (userId: string, body: UpdateUserBody, actingUser: SessionUser) => {
 	const existing = await userData.record(userId).getUnique();
 
@@ -202,6 +279,11 @@ export const userService = {
 	getById,
 	getAdminProfile,
 	updateAdminProfile,
+	getOwnProfile,
+	updateOwnProfile,
+	getOwnAvatar,
+	updateOwnAvatar,
+	removeOwnAvatar,
 	update,
 	remove,
 	getRolesByUserId: userData.getRolesByUserId,

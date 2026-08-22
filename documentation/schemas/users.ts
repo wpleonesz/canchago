@@ -72,6 +72,43 @@ registry.register('AdminUserProfile', AdminUserProfileSchema);
 registry.register('UpdateAdminUserProfileBody', UpdateAdminUserProfileBodySchema);
 registry.register('UserListResponse', UserListResponseSchema);
 
+export const OwnProfileSchema = z.object({
+	phone: z.string().nullable(),
+	facebookUrl: z.string().url().nullable(),
+	instagramUrl: z.string().url().nullable(),
+	linkedinUrl: z.string().url().nullable(),
+	xUrl: z.string().url().nullable(),
+	githubUrl: z.string().url().nullable(),
+	tiktokUrl: z.string().url().nullable(),
+	websiteUrl: z.string().url().nullable(),
+	hasAvatar: z.boolean(),
+	avatarUpdatedAt: z.string().datetime().nullable(),
+	profileUpdatedAt: z.string().datetime(),
+});
+
+export const UpdateOwnProfileBodySchema = z
+	.object({
+		phone: z.string().nullable().optional(),
+		facebookUrl: z.string().url().nullable().optional(),
+		instagramUrl: z.string().url().nullable().optional(),
+		linkedinUrl: z.string().url().nullable().optional(),
+		xUrl: z.string().url().nullable().optional(),
+		githubUrl: z.string().url().nullable().optional(),
+		tiktokUrl: z.string().url().nullable().optional(),
+		websiteUrl: z.string().url().nullable().optional(),
+		expectedProfileUpdatedAt: z.string().datetime(),
+	})
+	.strict();
+
+export const UpdateOwnAvatarBodySchema = z.object({
+	imageBase64: z.string(),
+	mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+});
+
+registry.register('OwnProfile', OwnProfileSchema);
+registry.register('UpdateOwnProfileBody', UpdateOwnProfileBodySchema);
+registry.register('UpdateOwnAvatarBody', UpdateOwnAvatarBodySchema);
+
 const errorResponses = {
 	400: {
 		description: 'Solicitud inválida',
@@ -293,6 +330,153 @@ registry.registerPath({
 			description: 'Usuario eliminado',
 		},
 		...errorResponses,
+	},
+});
+
+const ownProfileErrorResponses = {
+	400: errorResponses[400],
+	401: errorResponses[401],
+	409: {
+		description: 'El perfil fue modificado concurrentemente',
+		content: { 'application/json': { schema: ErrorResponseSchema } },
+	},
+	500: {
+		description: 'Error interno controlado',
+		content: { 'application/json': { schema: ErrorResponseSchema } },
+	},
+};
+
+registry.registerPath({
+	method: 'get',
+	path: '/profile',
+	tags: ['Profile'],
+	security: [{ cookieAuth: [] }],
+	description: 'Obtiene los datos opcionales del perfil del usuario autenticado.',
+	responses: {
+		200: {
+			description: 'Perfil propio',
+			content: { 'application/json': { schema: z.object({ data: OwnProfileSchema }) } },
+		},
+		...ownProfileErrorResponses,
+	},
+});
+
+registry.registerPath({
+	method: 'patch',
+	path: '/profile',
+	tags: ['Profile'],
+	security: [{ cookieAuth: [] }],
+	description:
+		'Actualiza parcialmente solo campos opcionales del perfil autenticado. Usa control optimista mediante expectedProfileUpdatedAt.',
+	requestBody: {
+		required: true,
+		content: {
+			'application/json': {
+				schema: {
+					type: 'object',
+					required: ['expectedProfileUpdatedAt'],
+					additionalProperties: false,
+					properties: {
+						phone: { type: 'string', nullable: true, example: '+593999999999' },
+						facebookUrl: { type: 'string', format: 'uri', nullable: true },
+						instagramUrl: { type: 'string', format: 'uri', nullable: true },
+						linkedinUrl: { type: 'string', format: 'uri', nullable: true },
+						xUrl: { type: 'string', format: 'uri', nullable: true },
+						githubUrl: { type: 'string', format: 'uri', nullable: true },
+						tiktokUrl: { type: 'string', format: 'uri', nullable: true },
+						websiteUrl: { type: 'string', format: 'uri', nullable: true },
+						expectedProfileUpdatedAt: { type: 'string', format: 'date-time' },
+					},
+				},
+			},
+		},
+	},
+	responses: {
+		200: {
+			description: 'Perfil actualizado',
+			content: { 'application/json': { schema: z.object({ data: OwnProfileSchema }) } },
+		},
+		...ownProfileErrorResponses,
+	},
+});
+
+registry.registerPath({
+	method: 'get',
+	path: '/profile/avatar',
+	tags: ['Profile'],
+	security: [{ cookieAuth: [] }],
+	description: 'Devuelve el avatar WebP del usuario autenticado con caché privada y nosniff.',
+	responses: {
+		200: {
+			description: 'Avatar normalizado',
+			content: { 'image/webp': { schema: { type: 'string', format: 'binary' } } },
+		},
+		401: errorResponses[401],
+		404: errorResponses[404],
+		500: ownProfileErrorResponses[500],
+	},
+});
+
+registry.registerPath({
+	method: 'put',
+	path: '/profile/avatar',
+	tags: ['Profile'],
+	security: [{ cookieAuth: [] }],
+	description:
+		'Reemplaza el avatar propio. Acepta JPEG, PNG o WebP de hasta 2 MiB, valida el contenido real y lo normaliza a WebP de máximo 1024×1024.',
+	requestBody: {
+		required: true,
+		content: {
+			'application/json': {
+				schema: {
+					type: 'object',
+					required: ['imageBase64', 'mimeType'],
+					additionalProperties: false,
+					properties: {
+						imageBase64: { type: 'string', format: 'byte' },
+						mimeType: { type: 'string', enum: ['image/jpeg', 'image/png', 'image/webp'] },
+					},
+				},
+			},
+		},
+	},
+	responses: {
+		200: {
+			description: 'Avatar actualizado',
+			content: {
+				'application/json': {
+					schema: z.object({ data: z.object({ avatarUpdatedAt: z.string().datetime() }) }),
+				},
+			},
+		},
+		400: errorResponses[400],
+		401: errorResponses[401],
+		413: {
+			description: 'La imagen supera 2 MiB',
+			content: { 'application/json': { schema: ErrorResponseSchema } },
+		},
+		415: {
+			description: 'MIME no permitido, contenido discordante o imagen corrupta',
+			content: { 'application/json': { schema: ErrorResponseSchema } },
+		},
+		422: {
+			description: 'La imagen no pudo procesarse de forma segura',
+			content: { 'application/json': { schema: ErrorResponseSchema } },
+		},
+		500: ownProfileErrorResponses[500],
+	},
+});
+
+registry.registerPath({
+	method: 'delete',
+	path: '/profile/avatar',
+	tags: ['Profile'],
+	security: [{ cookieAuth: [] }],
+	description: 'Elimina de forma idempotente el avatar del usuario autenticado.',
+	responses: {
+		204: { description: 'Avatar eliminado o ya inexistente' },
+		401: errorResponses[401],
+		500: ownProfileErrorResponses[500],
 	},
 });
 

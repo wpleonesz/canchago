@@ -452,3 +452,137 @@ registry.registerPath({
 		...errorResponses,
 	},
 });
+
+// Solicitudes de acceso (Gestor de Cancha) creadas por el registro público - feature 016.
+const requestIdParam = {
+	name: 'requestId',
+	in: 'path' as const,
+	required: true,
+	schema: { type: 'string' as const, format: 'uuid' },
+	example: EXAMPLE_UUID,
+};
+
+export const AccessRequestResponseSchema = z.object({
+	id: z.string().uuid(),
+	status: z.enum(['PENDING', 'APPROVED', 'REJECTED']),
+	createdAt: z.string().datetime(),
+	reviewedAt: z.string().datetime().nullable(),
+	rejectionReason: z.string().nullable(),
+	organization: z.object({
+		id: z.string().uuid(),
+		name: z.string(),
+		status: z.string(),
+		venues: z.array(z.object({ id: z.string().uuid(), name: z.string(), status: z.string() })),
+	}),
+	requester: z.object({
+		id: z.string().uuid(),
+		email: z.string().email(),
+		profile: z.object({ firstName: z.string(), lastName: z.string() }).nullable(),
+	}),
+});
+
+export const AccessRequestListResponseSchema = z.object({
+	data: z.array(AccessRequestResponseSchema),
+	meta: PaginationMetaSchema,
+});
+
+registry.register('AccessRequestResponse', AccessRequestResponseSchema);
+registry.register('AccessRequestListResponse', AccessRequestListResponseSchema);
+
+registry.registerPath({
+	method: 'get',
+	path: '/organizaciones/access-requests',
+	tags: ['Organizaciones'],
+	security: [{ cookieAuth: [] }],
+	description:
+		'Lista paginada de solicitudes de acceso como Gestor de Cancha (creadas por el registro público, feature 016). Requiere permiso `organizaciones.manage`.',
+	parameters: [
+		{
+			name: 'page',
+			in: 'query',
+			schema: { type: 'integer', minimum: 1 },
+			description: 'Número de página (default: 1)',
+		},
+		{
+			name: 'pageSize',
+			in: 'query',
+			schema: { type: 'integer', minimum: 1, maximum: 100 },
+			description: 'Registros por página (default: 20)',
+		},
+		{
+			name: 'status',
+			in: 'query',
+			schema: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] },
+			description: 'Filtro de estado (default: PENDING)',
+		},
+	],
+	responses: {
+		200: {
+			description: 'Lista de solicitudes',
+			content: { 'application/json': { schema: AccessRequestListResponseSchema } },
+		},
+		...errorResponses,
+	},
+});
+
+registry.registerPath({
+	method: 'post',
+	path: '/organizaciones/access-requests/{requestId}/approve',
+	tags: ['Organizaciones'],
+	security: [{ cookieAuth: [] }],
+	description:
+		'Aprueba una solicitud pendiente: activa la organización y su(s) sede(s), y crea el rol `Gestor de Cancha` (si no existe para esa organización) asignado al solicitante. Requiere permiso `organizaciones.manage`.',
+	parameters: [requestIdParam],
+	responses: {
+		200: {
+			description: 'Solicitud aprobada',
+			content: {
+				'application/json': {
+					schema: z.object({
+						data: z.object({ organizationId: z.string().uuid(), status: z.literal('APPROVED') }),
+					}),
+				},
+			},
+		},
+		...errorResponses,
+		409: {
+			description: 'La solicitud ya fue revisada',
+			content: { 'application/json': { schema: ErrorResponseSchema } },
+		},
+	},
+});
+
+registry.registerPath({
+	method: 'post',
+	path: '/organizaciones/access-requests/{requestId}/reject',
+	tags: ['Organizaciones'],
+	security: [{ cookieAuth: [] }],
+	description:
+		'Rechaza una solicitud pendiente (la organización/sede quedan en `PENDING_APPROVAL`, no se activan ni se borran). Requiere permiso `organizaciones.manage`.',
+	parameters: [requestIdParam],
+	requestBody: {
+		required: false,
+		content: {
+			'application/json': {
+				schema: z.object({ reason: z.string().max(500).optional() }),
+			},
+		},
+	},
+	responses: {
+		200: {
+			description: 'Solicitud rechazada',
+			content: {
+				'application/json': {
+					schema: z.object({
+						data: z.object({ requestId: z.string().uuid(), status: z.literal('REJECTED') }),
+					}),
+				},
+			},
+		},
+		...errorResponses,
+		409: {
+			description: 'La solicitud ya fue revisada',
+			content: { 'application/json': { schema: ErrorResponseSchema } },
+		},
+	},
+});

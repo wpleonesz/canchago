@@ -9,6 +9,7 @@ import type { SessionPermission, SessionRole, SessionUser } from '@/lib/session'
 import type {
 	CreateUserBody,
 	UpdateAdminUserProfileBody,
+	UpdateOwnProfileBody,
 	UpdateUserBody,
 	UserQueryParams,
 } from '@/validations/users';
@@ -243,6 +244,81 @@ export const getAdminProfile = async (userId: string) =>
 		select: selectAdminProfileFields,
 	});
 
+const selectOwnProfileFields = {
+	userId: true,
+	phone: true,
+	facebookUrl: true,
+	instagramUrl: true,
+	linkedinUrl: true,
+	xUrl: true,
+	githubUrl: true,
+	tiktokUrl: true,
+	websiteUrl: true,
+	avatarMimeType: true,
+	avatarUpdatedAt: true,
+	updatedAt: true,
+} satisfies Prisma.UserProfileSelect;
+
+export const getOwnProfile = async (userId: string) =>
+	prisma.userProfile.findUnique({
+		where: { userId },
+		select: selectOwnProfileFields,
+	});
+
+export const updateOwnProfile = async (userId: string, data: UpdateOwnProfileBody) =>
+	prisma.$transaction(async transaction => {
+		const update = await transaction.userProfile.updateMany({
+			where: {
+				userId,
+				updatedAt: new Date(data.expectedProfileUpdatedAt),
+			},
+			data: {
+				...(data.phone !== undefined ? { phone: data.phone || null } : {}),
+				...(data.facebookUrl !== undefined ? { facebookUrl: data.facebookUrl || null } : {}),
+				...(data.instagramUrl !== undefined ? { instagramUrl: data.instagramUrl || null } : {}),
+				...(data.linkedinUrl !== undefined ? { linkedinUrl: data.linkedinUrl || null } : {}),
+				...(data.xUrl !== undefined ? { xUrl: data.xUrl || null } : {}),
+				...(data.githubUrl !== undefined ? { githubUrl: data.githubUrl || null } : {}),
+				...(data.tiktokUrl !== undefined ? { tiktokUrl: data.tiktokUrl || null } : {}),
+				...(data.websiteUrl !== undefined ? { websiteUrl: data.websiteUrl || null } : {}),
+			},
+		});
+
+		if (update.count === 0) return null;
+
+		return transaction.userProfile.findUnique({
+			where: { userId },
+			select: selectOwnProfileFields,
+		});
+	});
+
+export const getOwnAvatar = async (userId: string) =>
+	prisma.userProfile.findUnique({
+		where: { userId },
+		select: { avatarData: true, avatarMimeType: true, avatarUpdatedAt: true },
+	});
+
+export const updateOwnAvatar = async (userId: string, avatar: { data: Buffer; mimeType: string }) =>
+	prisma.userProfile.update({
+		where: { userId },
+		data: {
+			avatarData: Uint8Array.from(avatar.data),
+			avatarMimeType: avatar.mimeType,
+			avatarUpdatedAt: new Date(),
+		},
+		select: { avatarUpdatedAt: true },
+	});
+
+export const removeOwnAvatar = async (userId: string) =>
+	prisma.userProfile.updateMany({
+		where: { userId },
+		data: {
+			avatarData: null,
+			avatarMimeType: null,
+			avatarUpdatedAt: new Date(),
+		},
+	});
+
 export type AdminProfileUpdateResult =
 	| { outcome: 'UPDATED'; user: NonNullable<Awaited<ReturnType<typeof getAdminProfile>>> }
 	| { outcome: 'NOT_FOUND' | 'INACTIVE' | 'SYSTEM_ROLE' | 'CONFLICT' };
@@ -300,6 +376,49 @@ export const updateAdminProfile = async (
 
 		return { outcome: 'UPDATED', user };
 	});
+
+/**
+ * Crea el usuario en Canchago tras haberlo creado en Keycloak (registro público, feature 016).
+ * A diferencia de `findOrSyncByOAuth`, siempre crea (el email ya se validó como único antes de
+ * llegar aquí) y opcionalmente asigna un único rol en la misma transacción — usado solo para el
+ * rol `Futbolista` (global, fijado en código, nunca en el body de la petición). El caso
+ * `Gestor de Cancha` no pasa ningún `roleId`: no recibe ningún rol hasta que se apruebe su
+ * solicitud (ver `database/organizaciones-sedes/access-request.db.ts`).
+ */
+export const createFromRegistration = async (
+	keycloakId: string,
+	data: { email: string; firstName: string; lastName: string },
+	roleId?: string,
+) => {
+	try {
+		return await prisma.$transaction(async transaction =>
+			transaction.user.create({
+				data: {
+					email: data.email,
+					username: data.email.split('@')[0] || data.email,
+					status: 'ACTIVE',
+					profile: {
+						create: { firstName: data.firstName, lastName: data.lastName },
+					},
+					authAccounts: {
+						create: {
+							provider: env.OAUTH_PROVIDER_NAME,
+							providerAccountId: keycloakId,
+						},
+					},
+					...(roleId ? { userRoles: { create: { roleId } } } : {}),
+				},
+				select: selectUserFields,
+			}),
+		);
+	} catch (error) {
+		if (isPrismaUniqueConstraintError(error)) {
+			throw new ConflictError('Ya existe un usuario con ese correo electrónico.');
+		}
+
+		throw error;
+	}
+};
 
 export const getAll = async (filters: UserQueryParams) => {
 	const { skip, take, meta } = normalizePagination(filters);
