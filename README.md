@@ -184,37 +184,41 @@ yarn test
 yarn build
 ```
 
+### Estado de validación conocido
+
+En la revisión documental del 21 de agosto de 2026, `yarn lint` terminó con dos advertencias y ningún error. La línea base no estaba completamente verde: `yarn typecheck` y `yarn build` fallaron por incompatibilidades OpenAPI/Zod, nulabilidad en usuarios y tipos de helpers/tests; `yarn test` aprobó 22 de 41 pruebas y las otras 19 fallaron porque `tests/integration/roles-permisos.test.ts` usa rutas de importación que no resuelven. Son defectos preexistentes del código, no señales de que deba cambiar Node, Yarn o esta configuración.
+
 El proyecto es spec-driven: lea `spec/constitution/` y la feature antes de cambiar código. Cada endpoint nuevo debe registrarse también en OpenAPI.
 
 ## Estructura
 
-| Ruta | Responsabilidad |
-|---|---|
-| `pages/api/` | Rutas REST y middlewares |
-| `middleware/` | Autenticación y autorización |
-| `services/` | Reglas de negocio |
-| `database/` | Acceso mediante Prisma |
-| `prisma/` | Schema, migraciones y seeds |
-| `documentation/` | Registro OpenAPI |
-| `keycloak/` | Realm local |
-| `spec/` | Constitución y contratos |
-| `tests/` | Pruebas unitarias e integración |
+| Ruta             | Responsabilidad                 |
+| ---------------- | ------------------------------- |
+| `pages/api/`     | Rutas REST y middlewares        |
+| `middleware/`    | Autenticación y autorización    |
+| `services/`      | Reglas de negocio               |
+| `database/`      | Acceso mediante Prisma          |
+| `prisma/`        | Schema, migraciones y seeds     |
+| `documentation/` | Registro OpenAPI                |
+| `keycloak/`      | Realm local                     |
+| `spec/`          | Constitución y contratos        |
+| `tests/`         | Pruebas unitarias e integración |
 
 ## Comandos
 
-| Comando | Función |
-|---|---|
-| `yarn dev` | Next.js con recarga |
-| `yarn build` / `yarn start` | Construir / servir producción |
-| `yarn lint` / `yarn lint:fix` | Comprobar / corregir ESLint |
-| `yarn format` / `yarn format:check` | Escribir / comprobar Prettier |
-| `yarn typecheck` | Validar TypeScript |
-| `yarn test` / `yarn test:watch` | Vitest una vez / observación |
-| `yarn generate` | Generar Prisma Client |
-| `yarn migrate-dev` / `yarn migrate-deploy` | Migrar desarrollo / despliegue |
-| `yarn seed` / `yarn seed-dev` | Permisos / roles demo |
+| Comando                                            | Función                                            |
+| -------------------------------------------------- | -------------------------------------------------- |
+| `yarn dev`                                         | Next.js con recarga                                |
+| `yarn build` / `yarn start`                        | Construir / servir producción                      |
+| `yarn lint` / `yarn lint:fix`                      | Comprobar / corregir ESLint                        |
+| `yarn format` / `yarn format:check`                | Escribir / comprobar Prettier                      |
+| `yarn typecheck`                                   | Validar TypeScript                                 |
+| `yarn test` / `yarn test:watch`                    | Vitest una vez / observación                       |
+| `yarn generate`                                    | Generar Prisma Client                              |
+| `yarn migrate-dev` / `yarn migrate-deploy`         | Migrar desarrollo / despliegue                     |
+| `yarn seed` / `yarn seed-dev`                      | Permisos / roles demo                              |
 | `yarn asignar-rol --email <correo> --rol <codigo>` | Asignar un rol existente a un usuario sincronizado |
-| `yarn prisma-studio` | Explorar la base |
+| `yarn prisma-studio`                               | Explorar la base                                   |
 
 Los scripts `worker:email`, `worker:notification` y `worker:report` están declarados, pero no existen sus archivos `workers/*.ts`; actualmente no son operativos.
 
