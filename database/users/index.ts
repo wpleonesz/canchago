@@ -128,6 +128,18 @@ export const getSessionUser = async (userId: string): Promise<SessionUser | null
 	};
 };
 
+const toOAuthSyncUser = (
+	user: NonNullable<Awaited<ReturnType<typeof loadUserWithAccess>>>,
+): OAuthSyncUser => ({
+	user: {
+		id: user.id,
+		email: user.email,
+		name: buildDisplayName(user.profile?.firstName, user.profile?.lastName, user.email),
+		roles: mapRoles(user.userRoles),
+		permissions: mapPermissions(user.userRoles),
+	},
+});
+
 export const findOrSyncByOAuth = async (
 	oauthSubject: string,
 	email: string,
@@ -162,15 +174,50 @@ export const findOrSyncByOAuth = async (
 			throw new Error('User synchronization failed');
 		}
 
-		return {
-			user: {
-				id: user.id,
-				email: user.email,
-				name: buildDisplayName(user.profile?.firstName, user.profile?.lastName, user.email),
-				roles: mapRoles(user.userRoles),
-				permissions: mapPermissions(user.userRoles),
-			},
-		};
+		return toOAuthSyncUser(user);
+	}
+
+	// Ningún AuthAccount coincide por (provider, oauthSubject) — pero el usuario puede seguir
+	// existiendo por email si el IdP le asignó un sujeto nuevo (p. ej. se recreó el contenedor
+	// de Keycloak, que regenera los IDs internos de cada usuario). Sin este repaso, el bloque de
+	// abajo intentaría crear un User duplicado y fallaría contra la restricción única de
+	// `email` con un 500 genérico en vez de re-enlazar la cuenta existente.
+	const existingUserByEmail = await prisma.user.findUnique({ where: { email } });
+
+	if (existingUserByEmail) {
+		const relinkedUser = await prisma.$transaction(async transaction => {
+			await transaction.authAccount.deleteMany({
+				where: { userId: existingUserByEmail.id, provider: env.OAUTH_PROVIDER_NAME },
+			});
+
+			await transaction.authAccount.create({
+				data: {
+					userId: existingUserByEmail.id,
+					provider: env.OAUTH_PROVIDER_NAME,
+					providerAccountId: oauthSubject,
+				},
+			});
+
+			return transaction.user.update({
+				where: { id: existingUserByEmail.id },
+				data: {
+					profile: {
+						upsert: {
+							create: splitDisplayName(name),
+							update: splitDisplayName(name),
+						},
+					},
+				},
+			});
+		});
+
+		const user = await loadUserWithAccess(relinkedUser.id);
+
+		if (!user) {
+			throw new Error('User synchronization failed');
+		}
+
+		return toOAuthSyncUser(user);
 	}
 
 	const createdUser = await prisma.$transaction(async transaction => {
@@ -200,15 +247,7 @@ export const findOrSyncByOAuth = async (
 		throw new Error('User synchronization failed');
 	}
 
-	return {
-		user: {
-			id: user.id,
-			email: user.email,
-			name: buildDisplayName(user.profile?.firstName, user.profile?.lastName, user.email),
-			roles: mapRoles(user.userRoles),
-			permissions: mapPermissions(user.userRoles),
-		},
-	};
+	return toOAuthSyncUser(user);
 };
 
 const selectUserFields = {
