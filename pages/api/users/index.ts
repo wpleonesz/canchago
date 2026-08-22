@@ -7,6 +7,7 @@ import { routerOptions } from '@/lib/api/router-config';
 import { userService } from '@/services/users';
 import { userQuerySchema, createUserSchema } from '@/validations/users';
 import { throwValidationError } from '@/lib/errors/throw-validation-error';
+import { AuthenticationError } from '@/errors/auth';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
@@ -24,7 +25,11 @@ handler
 		const parsed = createUserSchema.safeParse(req.body);
 		throwValidationError(parsed);
 
-		const user = await userService.create(parsed.data);
+		if (!req.user) {
+			throw new AuthenticationError();
+		}
+
+		const user = await userService.create(parsed.data, req.user);
 
 		res.status(201).json({ data: user });
 	});

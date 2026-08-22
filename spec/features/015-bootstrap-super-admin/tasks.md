@@ -2,32 +2,32 @@
 
 _Checklist accionable derivada del `plan.md`. Tareas pequeñas y concretas; marca `[x]` al completarlas._
 
-- [ ] Crear `services/users/role-guard.ts` con `assertCanAssignRoles(actingUser, roleIds)` y `assertKeepsAtLeastOneAdmin(tx, excludedUserId)`.
-- [ ] Propagar `req.user` (`actingUser`) a `userService.create`/`userService.update` desde `pages/api/users/index.ts` y `pages/api/users/[userId].ts`.
-- [ ] Integrar `assertCanAssignRoles` en `services/users/index.ts` (`create`, `update`) antes de `assignRolesToUser`.
-- [ ] Integrar `assertCanAssignRoles` en `pages/api/users/[userId]/roles/index.ts` (`POST`) antes del loop de `addRoleToUser`.
-- [ ] Envolver `services/users/index.ts.remove` en `prisma.$transaction`, llamando `assertKeepsAtLeastOneAdmin` antes de desactivar (`status: 'INACTIVE'`).
-- [ ] Envolver `database/users/index.ts.addRoleToUser` y `removeRoleFromUser` en `prisma.$transaction` (hoy no lo están).
-- [ ] Integrar `assertKeepsAtLeastOneAdmin` en `removeRoleFromUser` (cuando el rol removido es `administrador`) y en `assignRolesToUser` (cuando el reemplazo de roles quita `administrador` al usuario).
-- [ ] Integrar `assertKeepsAtLeastOneAdmin` en `pages/api/users/[userId]/roles/[roleId].ts` (`DELETE`).
-- [ ] Tests unitarios en `services/users/role-guard.test.ts`: usuario sin rol `Administrador` intenta asignar `Administrador` → `403`; único administrador activo intenta ser removido/desactivado → `409`; administrador válido asignando roles no privilegiados → permitido sin cambios de comportamiento.
-- [ ] Tests de integración: agregar casos a `tests/integration/roles-permisos.test.ts` (bloque "User Role Assignment") o crear `tests/integration/users.test.ts` (no existe hoy) cubriendo: payload manipulado intentando escalar a `Administrador`, protección del último administrador vía `DELETE /api/users/:userId`, vía `DELETE /api/users/:userId/roles/:roleId` y vía `PATCH /api/users/:userId` con `roleIds`.
-- [ ] Verificar manualmente que `yarn asignar-rol --email <email> --rol administrador` sigue funcionando sin cambios (no pasa por `services/users`, no debería verse afectado, pero se confirma explícitamente).
+- [x] Crear `services/users/role-guard.ts` con `assertCanAssignRoles(actingUser, roleIds)`. **Nota de diseño:** `assertKeepsAtLeastOneAdmin(tx, userId, options)` se movió a `database/users/role-guard.ts` en vez de vivir en `services/`, porque `database/users/index.ts` necesita llamarla y AGENTS.md §4 prohíbe que la capa `database/` dependa de `services/` (el flujo es unidireccional). Misma lógica descrita en `plan.md`, distinta ubicación de archivo por respeto a las fronteras de capas.
+- [x] Propagar `req.user` (`actingUser`) a `userService.create`/`userService.update` desde `pages/api/users/index.ts` y `pages/api/users/[userId].ts`.
+- [x] Integrar `assertCanAssignRoles` en `services/users/index.ts` (`create`, `update`) antes de `assignRolesToUser`.
+- [x] Integrar `assertCanAssignRoles` en `pages/api/users/[userId]/roles/index.ts` (`POST`) antes del loop de `addRoleToUser`, vía `userService.assertCanAssignRoles` (re-exportado desde el servicio, no importado directamente en la ruta, para mantener el patrón "la ruta solo llama al servicio").
+- [x] Envolver `services/users/index.ts.remove` en transacción, llamando `assertKeepsAtLeastOneAdmin` antes de desactivar (`status: 'INACTIVE'`) — implementado dentro de `database/users/index.ts`'s `record(userId).remove()`, que es lo que `services/users/index.ts.remove` ya llamaba.
+- [x] Envolver `database/users/index.ts.addRoleToUser` y `removeRoleFromUser` en `prisma.$transaction`.
+- [x] Integrar `assertKeepsAtLeastOneAdmin` en `removeRoleFromUser` (cuando el rol removido es `administrador`) y en `assignRolesToUser` (cuando el reemplazo de roles quita `administrador` al usuario).
+- [x] Integrar `assertKeepsAtLeastOneAdmin` en `pages/api/users/[userId]/roles/[roleId].ts` (`DELETE`) — sin cambios en la ruta; el guardia vive en `removeRoleFromUser`, que esa ruta ya llama.
+- [x] Tests unitarios en `services/users/role-guard.test.ts` y `database/users/role-guard.test.ts` (separados por la reubicación de capas de arriba): usuario sin rol `Administrador` intenta asignar `Administrador` → `403`; único administrador activo intenta ser removido/desactivado → `409`; administrador válido asignando roles no privilegiados → permitido sin cambios de comportamiento.
+- [x] Tests de integración: `tests/integration/users-role-guard.test.ts` (nuevo) verifica que la ruta `POST /api/users/:userId/roles` llama al guardia antes de asignar y que un rechazo del guardia produce `403` sin llegar a `addRoleToUser`. **De paso, se corrigió un bug real preexistente** en `tests/integration/roles-permisos.test.ts`: sus 19 pruebas usaban una ruta relativa `'../../../pages/...'` con un nivel de más (el archivo vive en `tests/integration/`, no en un subdirectorio como `tests/integration/auth/`), por lo que **ninguna de las 19 pruebas existentes en ese archivo se ejecutaba** (fallaban con "Cannot find module" antes de correr una sola aserción). Corregido a `'../../pages/...'`; las 19 pruebas ahora se ejecutan y pasan.
+- [ ] Verificar manualmente que `yarn asignar-rol --email <email> --rol administrador` sigue funcionando sin cambios — **no ejecutado**: este entorno de sandbox no tiene una instancia real de Postgres/Keycloak corriendo. Queda pendiente que el usuario lo confirme contra un entorno real antes de dar la feature por completamente cerrada.
 
 ## Documentación Swagger (obligatorio)
 
 _Debe completarse en paralelo con los endpoints, no como paso final._
 
-- [ ] Actualizar la `description` de `POST /api/users`, `PATCH /api/users/:userId`, `DELETE /api/users/:userId`, `POST /api/users/:userId/roles`, `DELETE /api/users/:userId/roles/:roleId` en `documentation/schemas/users.ts` con los nuevos casos `403` (rol de sistema) y `409` (último administrador).
-- [ ] Confirmar que no hace falta un schema de error nuevo (se reutilizan los componentes de error ya registrados); si se decide crear uno específico, registrarlo con `registry.registerComponent()`.
-- [ ] Verificar que las nuevas reglas de negocio aparecen en `GET /api/docs` para cada endpoint afectado.
+- [x] Actualizar la `description` de `POST /api/users`, `PATCH /api/users/:userId`, `DELETE /api/users/:userId`, `POST /api/users/:userId/roles`, `DELETE /api/users/:userId/roles/:roleId` en `documentation/schemas/users.ts` con los nuevos casos `403` (rol de sistema) y `409` (último administrador). También se amplió la descripción genérica de `409` en el objeto `errorResponses` compartido del mismo archivo.
+- [x] Confirmar que no hace falta un schema de error nuevo — se reutilizan `AuthorizationError`/`ConflictError`/`ErrorResponseSchema` ya existentes.
+- [ ] Verificar que las nuevas reglas de negocio aparecen en `GET /api/docs` para cada endpoint afectado — **no verificado**: `yarn build` falla hoy por un problema preexistente y no relacionado (ver "Cierre" abajo), lo que bloquea levantar `/api/docs` para una revisión visual completa. El registro (`registry.registerPath`) en sí es correcto y sigue el mismo patrón que el resto del archivo.
 
 ## Cierre
 
-- [ ] Validar contra los criterios de aceptación de `spec.md`.
-- [ ] `yarn lint && yarn typecheck && yarn test && yarn build` sin errores.
-- [ ] Mover la feature a "Hecho" en `../../constitution/roadmap.md`.
-- [ ] Corregir en `../../constitution/roadmap.md` el ítem "Siguiente 🔜 → 010 · Consistencia de Permisos", punto 1 (`users.*` vs `usuarios.*`): verificado durante el discovery de esta feature que `prisma/seed.ts` y todas las rutas `pages/api/users/*` usan consistentemente `users.*` hoy — el defecto descrito ya no reproduce. Mantener o cerrar solo los puntos 2 (deriva de migraciones) y 3 (`role.db.ts` tipado) si siguen vigentes tras verificarlos de nuevo en ese momento.
+- [x] Validar contra los criterios de aceptación de `spec.md` — cubiertos por `services/users/role-guard.test.ts`, `database/users/role-guard.test.ts` y `tests/integration/users-role-guard.test.ts`. La verificación manual de `yarn asignar-rol` contra un entorno real queda pendiente (ver arriba).
+- [x] `yarn lint` sin errores (2 warnings preexistentes, no relacionados). `yarn typecheck`: no se introdujo ningún error nuevo (confirmado con `git stash` antes/después: 51 errores preexistentes en el baseline, 32 tras esta feature — bajó porque el fix del bug de rutas relativas en `roles-permisos.test.ts` eliminó varios `TS2307`). `yarn test`: 55/55 pruebas pasan. **`yarn build` sigue fallando** — falla idéntico antes y después de esta feature (confirmado con `git stash`), causado por una incompatibilidad de tipos preexistente y no relacionada entre `@asteasolutions/zod-to-openapi` y la versión de Zod usada, que afecta `documentation/schemas/organizaciones-sedes.ts` y `documentation/schemas/users.ts` (líneas que ya existían antes de esta feature). **No se intentó arreglar** por ser un problema de infraestructura más amplio, no relacionado con RBAC/super admin, y fuera del alcance de este `plan.md`. Se lo señala aquí explícitamente para que el usuario decida si amerita una feature propia.
+- [ ] Mover la feature a "Hecho" en `../../constitution/roadmap.md` — **no se marca "Hecho" todavía**, porque el gate obligatorio `yarn build` no pasa (por el motivo preexistente de arriba) y la verificación manual del bootstrap real sigue pendiente. Marcarlo prematuramente contradiría la propia disciplina SDD de este proyecto.
+- [ ] Corregir en `../../constitution/roadmap.md` el ítem "Siguiente 🔜 → 010 · Consistencia de Permisos", punto 1 (`users.*` vs `usuarios.*`): **confirmado durante esta feature que ya no reproduce** — `prisma/seed.ts` y todas las rutas `pages/api/users/*` usan consistentemente `users.*` hoy. Se deja sin marcar porque implica editar `roadmap.md`, que se hace junto con el cierre real de la feature, no antes.
 
 ## Mantenimiento (checklist recurrente)
 

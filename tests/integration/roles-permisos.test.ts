@@ -27,7 +27,7 @@ import { createMockResponse } from '@/tests/helpers/mock-next-response';
 describe('Roles API Integration Tests', () => {
 	describe('POST /api/roles', () => {
 		it('creates a new role with valid input', async () => {
-			const handler = (await import('../../../pages/api/roles/index')).default;
+			const handler = (await import('../../pages/api/roles/index')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -54,7 +54,7 @@ describe('Roles API Integration Tests', () => {
 		});
 
 		it('returns 400 for missing organizationId', async () => {
-			const handler = (await import('../../../pages/api/roles/index')).default;
+			const handler = (await import('../../pages/api/roles/index')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -75,7 +75,7 @@ describe('Roles API Integration Tests', () => {
 		});
 
 		it('returns 422 for invalid role name', async () => {
-			const handler = (await import('../../../pages/api/roles/index')).default;
+			const handler = (await import('../../pages/api/roles/index')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -101,7 +101,7 @@ describe('Roles API Integration Tests', () => {
 
 	describe('GET /api/roles', () => {
 		it('returns paginated list of roles', async () => {
-			const handler = (await import('../../../pages/api/roles/index')).default;
+			const handler = (await import('../../pages/api/roles/index')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -127,7 +127,7 @@ describe('Roles API Integration Tests', () => {
 		});
 
 		it('returns 422 for invalid pagination parameters', async () => {
-			const handler = (await import('../../../pages/api/roles/index')).default;
+			const handler = (await import('../../pages/api/roles/index')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -152,7 +152,7 @@ describe('Roles API Integration Tests', () => {
 
 	describe('GET /api/roles/{roleId}', () => {
 		it('returns role details with permissions', async () => {
-			const handler = (await import('../../../pages/api/roles/[roleId]')).default;
+			const handler = (await import('../../pages/api/roles/[roleId]')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -175,7 +175,7 @@ describe('Roles API Integration Tests', () => {
 		});
 
 		it('returns 404 for non-existent role', async () => {
-			const handler = (await import('../../../pages/api/roles/[roleId]')).default;
+			const handler = (await import('../../pages/api/roles/[roleId]')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -200,7 +200,7 @@ describe('Roles API Integration Tests', () => {
 
 	describe('PATCH /api/roles/{roleId}', () => {
 		it('updates role name and description', async () => {
-			const handler = (await import('../../../pages/api/roles/[roleId]')).default;
+			const handler = (await import('../../pages/api/roles/[roleId]')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -227,7 +227,7 @@ describe('Roles API Integration Tests', () => {
 		});
 
 		it('returns 422 for invalid update data', async () => {
-			const handler = (await import('../../../pages/api/roles/[roleId]')).default;
+			const handler = (await import('../../pages/api/roles/[roleId]')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -255,7 +255,7 @@ describe('Roles API Integration Tests', () => {
 
 	describe('DELETE /api/roles/{roleId}', () => {
 		it('soft deletes a role', async () => {
-			const handler = (await import('../../../pages/api/roles/[roleId]')).default;
+			const handler = (await import('../../pages/api/roles/[roleId]')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -280,7 +280,7 @@ describe('Roles API Integration Tests', () => {
 
 	describe('GET /api/permisos', () => {
 		it('returns paginated list of permissions', async () => {
-			const handler = (await import('../../../pages/api/permisos/index')).default;
+			const handler = (await import('../../pages/api/permisos/index')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -305,7 +305,7 @@ describe('Roles API Integration Tests', () => {
 
 	describe('GET /api/roles/{roleId}/permisos', () => {
 		it('returns paginated list of permissions for a role', async () => {
-			const handler = (await import('../../../pages/api/roles/[roleId]/permisos/index')).default;
+			const handler = (await import('../../pages/api/roles/[roleId]/permisos/index')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -332,7 +332,7 @@ describe('Roles API Integration Tests', () => {
 
 	describe('PATCH /api/roles/{roleId}/permisos', () => {
 		it('updates permissions for a role', async () => {
-			const handler = (await import('../../../pages/api/roles/[roleId]/permisos/index')).default;
+			const handler = (await import('../../pages/api/roles/[roleId]/permisos/index')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -358,7 +358,7 @@ describe('Roles API Integration Tests', () => {
 		});
 
 		it('returns 422 for invalid permission IDs', async () => {
-			const handler = (await import('../../../pages/api/roles/[roleId]/permisos/index')).default;
+			const handler = (await import('../../pages/api/roles/[roleId]/permisos/index')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -386,7 +386,7 @@ describe('Roles API Integration Tests', () => {
 
 	describe('User Role Assignment', () => {
 		it('assigns roles when creating a user', async () => {
-			const handler = (await import('../../../pages/api/users/index')).default;
+			const handler = (await import('../../pages/api/users/index')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -416,7 +416,7 @@ describe('Roles API Integration Tests', () => {
 		});
 
 		it('gets user roles', async () => {
-			const handler = (await import('../../../pages/api/users/[userId]/roles/index')).default;
+			const handler = (await import('../../pages/api/users/[userId]/roles/index')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -440,7 +440,7 @@ describe('Roles API Integration Tests', () => {
 		});
 
 		it('adds a role to a user', async () => {
-			const handler = (await import('../../../pages/api/users/[userId]/roles/index')).default;
+			const handler = (await import('../../pages/api/users/[userId]/roles/index')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -463,7 +463,7 @@ describe('Roles API Integration Tests', () => {
 		});
 
 		it('removes a role from a user', async () => {
-			const handler = (await import('../../../pages/api/users/[userId]/roles/[roleId]')).default;
+			const handler = (await import('../../pages/api/users/[userId]/roles/[roleId]')).default;
 			const response = createMockResponse();
 
 			const request = {
@@ -486,7 +486,7 @@ describe('Roles API Integration Tests', () => {
 		});
 
 		it('returns 422 for invalid roleIds', async () => {
-			const handler = (await import('../../../pages/api/users/[userId]/roles/index')).default;
+			const handler = (await import('../../pages/api/users/[userId]/roles/index')).default;
 			const response = createMockResponse();
 
 			const request = {

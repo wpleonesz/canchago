@@ -1,7 +1,10 @@
 import * as userData from '@/database/users';
 import { ConflictError } from '@/errors/conflict-error';
 import { NotFoundError } from '@/errors/not-found-error';
+import type { SessionUser } from '@/lib/session';
 import type { CreateUserBody, UpdateUserBody, UserQueryParams } from '@/validations/users';
+
+import { assertCanAssignRoles } from './role-guard';
 
 export const getAll = async (query: UserQueryParams) => {
 	const { users, meta } = await userData.getAll(query);
@@ -19,7 +22,11 @@ export const getAll = async (query: UserQueryParams) => {
 	};
 };
 
-export const create = async (body: CreateUserBody) => {
+export const create = async (body: CreateUserBody, actingUser: SessionUser) => {
+	if (body.roleIds && body.roleIds.length > 0) {
+		await assertCanAssignRoles(actingUser, body.roleIds);
+	}
+
 	const user = await userData.create(body);
 
 	if (body.roleIds && body.roleIds.length > 0) {
@@ -58,11 +65,15 @@ export const getById = async (userId: string) => {
 	};
 };
 
-export const update = async (userId: string, body: UpdateUserBody) => {
+export const update = async (userId: string, body: UpdateUserBody, actingUser: SessionUser) => {
 	const existing = await userData.record(userId).getUnique();
 
 	if (!existing) {
 		throw new NotFoundError('El usuario solicitado no existe.');
+	}
+
+	if (body.roleIds !== undefined) {
+		await assertCanAssignRoles(actingUser, body.roleIds);
 	}
 
 	try {
@@ -113,4 +124,5 @@ export const userService = {
 	assignRolesToUser: userData.assignRolesToUser,
 	addRoleToUser: userData.addRoleToUser,
 	removeRoleFromUser: userData.removeRoleFromUser,
+	assertCanAssignRoles,
 };

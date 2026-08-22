@@ -1,6 +1,6 @@
 # 015 · Bootstrap y Protección del Super Admin
 
-**Estado:** propuesta
+**Estado:** en curso (implementación y tests completos; pendiente verificación manual de `yarn asignar-rol` contra un entorno real y resolución del bloqueo preexistente de `yarn build` antes de marcar "Hecho")
 
 ## Qué hace
 
@@ -32,10 +32,10 @@ Tampoco existe ningún guardia contra remover el último `Administrador` activo:
 
 ### Documentación (obligatorio)
 
-- [ ] Las nuevas reglas de negocio (403 por rol de sistema, 409 por último administrador) están reflejadas en la `description` de los endpoints afectados en `documentation/schemas/users.ts`, ya registrados con `registry.registerPath()`.
-- [ ] Si se decide introducir un schema de error específico para estos casos, se registra con `registry.registerComponent()`; si se reutilizan `ErrorResponseSchema`/`ConflictError`/`AuthorizationError` ya existentes, no hace falta un schema nuevo.
-- [ ] `documentation/schemas/users.ts` sigue exportado desde `documentation/schemas/index.ts` (ya lo está).
-- [ ] Los endpoints muestran la nueva regla de negocio en `GET /api/docs`.
+- [x] Las nuevas reglas de negocio (403 por rol de sistema, 409 por último administrador) están reflejadas en la `description` de los endpoints afectados en `documentation/schemas/users.ts`, ya registrados con `registry.registerPath()`.
+- [x] Se reutilizan `ErrorResponseSchema`/`ConflictError`/`AuthorizationError` ya existentes; no hizo falta un schema nuevo.
+- [x] `documentation/schemas/users.ts` sigue exportado desde `documentation/schemas/index.ts` (ya lo estaba).
+- [ ] Los endpoints muestran la nueva regla de negocio en `GET /api/docs` — **no verificado**: `yarn build` falla hoy por un problema preexistente y no relacionado con Zod/`zod-to-openapi` (ver `tasks.md` → "Cierre"), lo que impide levantar `/api/docs` para confirmarlo visualmente.
 
 ## Fuera de alcance
 

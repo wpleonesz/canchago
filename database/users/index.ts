@@ -8,6 +8,8 @@ import { normalizePagination } from '@/helper/pagination';
 import type { SessionPermission, SessionRole, SessionUser } from '@/lib/session';
 import type { CreateUserBody, UpdateUserBody, UserQueryParams } from '@/validations/users';
 
+import { assertKeepsAtLeastOneAdmin } from './role-guard';
+
 type OAuthSyncUser = {
 	user: SessionUser;
 };
@@ -288,6 +290,8 @@ export const getRolesByUserId = async (userId: string) => {
 
 export const assignRolesToUser = async (userId: string, roleIds: string[]) =>
 	prisma.$transaction(async transaction => {
+		await assertKeepsAtLeastOneAdmin(transaction, userId, { newRoleIds: roleIds });
+
 		await transaction.userRole.deleteMany({
 			where: { userId },
 		});
@@ -303,14 +307,20 @@ export const assignRolesToUser = async (userId: string, roleIds: string[]) =>
 	});
 
 export const addRoleToUser = async (userId: string, roleId: string) => {
-	await prisma.userRole.create({
-		data: { userId, roleId },
+	await prisma.$transaction(async transaction => {
+		await transaction.userRole.create({
+			data: { userId, roleId },
+		});
 	});
 };
 
 export const removeRoleFromUser = async (userId: string, roleId: string) => {
-	await prisma.userRole.deleteMany({
-		where: { userId, roleId },
+	await prisma.$transaction(async transaction => {
+		await assertKeepsAtLeastOneAdmin(transaction, userId, { removingRoleId: roleId });
+
+		await transaction.userRole.deleteMany({
+			where: { userId, roleId },
+		});
 	});
 };
 
@@ -339,11 +349,15 @@ export const record = (userId: string) => ({
 			select: selectUserFields,
 		}),
 	remove: async () =>
-		prisma.user.update({
-			where: { id: userId },
-			data: {
-				status: 'INACTIVE',
-			},
-			select: selectUserFields,
+		prisma.$transaction(async transaction => {
+			await assertKeepsAtLeastOneAdmin(transaction, userId);
+
+			return transaction.user.update({
+				where: { id: userId },
+				data: {
+					status: 'INACTIVE',
+				},
+				select: selectUserFields,
+			});
 		}),
 });

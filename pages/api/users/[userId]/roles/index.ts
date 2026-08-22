@@ -9,6 +9,7 @@ import { userService } from '@/services/users';
 import { userParamsSchema } from '@/validations/users';
 import { throwValidationError } from '@/lib/errors/throw-validation-error';
 import { NotFoundError } from '@/errors/not-found-error';
+import { AuthenticationError } from '@/errors/auth';
 import { VALIDATION_MESSAGES } from '@/validations/schemas';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
@@ -57,10 +58,16 @@ handler
 		throwValidationError(parsedParams);
 		throwValidationError(parsedBody);
 
+		if (!req.user) {
+			throw new AuthenticationError();
+		}
+
 		const user = await userService.getById(parsedParams.data.userId);
 		if (!user) {
 			throw new NotFoundError('El usuario solicitado no existe.');
 		}
+
+		await userService.assertCanAssignRoles(req.user, parsedBody.data.roleIds);
 
 		for (const roleId of parsedBody.data.roleIds) {
 			await userService.addRoleToUser(parsedParams.data.userId, roleId);

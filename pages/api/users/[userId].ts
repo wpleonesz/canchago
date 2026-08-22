@@ -7,6 +7,7 @@ import { routerOptions } from '@/lib/api/router-config';
 import { userService } from '@/services/users';
 import { userParamsSchema, updateUserSchema } from '@/validations/users';
 import { throwValidationError } from '@/lib/errors/throw-validation-error';
+import { AuthenticationError } from '@/errors/auth';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
@@ -27,7 +28,11 @@ handler
 		throwValidationError(parsedParams);
 		throwValidationError(parsedBody);
 
-		const user = await userService.update(parsedParams.data.userId, parsedBody.data);
+		if (!req.user) {
+			throw new AuthenticationError();
+		}
+
+		const user = await userService.update(parsedParams.data.userId, parsedBody.data, req.user);
 
 		res.status(200).json({ data: user });
 	})

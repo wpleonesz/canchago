@@ -84,7 +84,8 @@ const errorResponses = {
 		},
 	},
 	409: {
-		description: 'Conflicto: el recurso ya existe',
+		description:
+			'Conflicto: el recurso ya existe, o la operación dejaría la plataforma sin ningún administrador activo',
 		content: {
 			'application/json': {
 				schema: ErrorResponseSchema,
@@ -156,7 +157,8 @@ registry.registerPath({
 	tags: ['Users'],
 	security: [{ cookieAuth: [] }],
 	description:
-		'Crea un nuevo usuario. Requiere permiso `users.create`. Puede asignar roles al crear.',
+		'Crea un nuevo usuario. Requiere permiso `users.create`. Puede asignar roles al crear. ' +
+		'Si `roleIds` incluye un rol de sistema (`isSystem: true`, como `Administrador`), responde `403` a menos que quien hace la petición ya tenga asignado el rol `Administrador`.',
 	requestBody: {
 		required: true,
 		content: {
@@ -215,7 +217,9 @@ registry.registerPath({
 	tags: ['Users'],
 	security: [{ cookieAuth: [] }],
 	description:
-		'Actualiza un usuario. Requiere permiso `users.update`. Puede actualizar roles con roleIds.',
+		'Actualiza un usuario. Requiere permiso `users.update`. Puede actualizar roles con roleIds ' +
+		'(reemplaza todos los roles previos). Si el reemplazo incluye un rol de sistema, responde `403` salvo que quien hace la petición sea `Administrador`. ' +
+		'Si el reemplazo remueve el rol `Administrador` del único administrador activo, responde `409`.',
 	parameters: [userIdParam],
 	requestBody: {
 		required: false,
@@ -250,7 +254,9 @@ registry.registerPath({
 	path: '/users/{userId}',
 	tags: ['Users'],
 	security: [{ cookieAuth: [] }],
-	description: 'Elimina (soft delete) un usuario. Requiere permiso `users.delete`.',
+	description:
+		'Elimina (soft delete) un usuario. Requiere permiso `users.delete`. ' +
+		'Responde `409` si el usuario es el único activo con el rol global `Administrador` asignado.',
 	parameters: [userIdParam],
 	responses: {
 		204: {
@@ -302,7 +308,9 @@ registry.registerPath({
 	path: '/users/{userId}/roles',
 	tags: ['UserRoles'],
 	security: [{ cookieAuth: [] }],
-	description: 'Asigna nuevos roles a un usuario. Requiere permiso `users.manage`.',
+	description:
+		'Asigna nuevos roles a un usuario. Requiere permiso `users.manage`. ' +
+		'Si `roleIds` incluye un rol de sistema (`isSystem: true`, como `Administrador`), responde `403` a menos que quien hace la petición ya tenga asignado el rol `Administrador`.',
 	parameters: [userIdParam],
 	requestBody: {
 		required: true,
@@ -345,7 +353,9 @@ registry.registerPath({
 	path: '/users/{userId}/roles/{roleId}',
 	tags: ['UserRoles'],
 	security: [{ cookieAuth: [] }],
-	description: 'Remueve un rol de un usuario. Requiere permiso `users.manage`.',
+	description:
+		'Remueve un rol de un usuario. Requiere permiso `users.manage`. ' +
+		'Responde `409` si el rol removido es el rol global `Administrador` y el usuario es el único activo que lo tiene asignado.',
 	parameters: [userIdParam, roleIdParam],
 	responses: {
 		204: {
