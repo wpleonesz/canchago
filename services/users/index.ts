@@ -1,11 +1,17 @@
 import * as userData from '@/database/users';
+import { AuthorizationError } from '@/errors/auth';
 import { BusinessRuleError } from '@/errors/business-rule-error';
 import { ConflictError } from '@/errors/conflict-error';
 import { NotFoundError } from '@/errors/not-found-error';
 import type { SessionUser } from '@/lib/session';
-import type { CreateUserBody, UpdateUserBody, UserQueryParams } from '@/validations/users';
+import type {
+	CreateUserBody,
+	UpdateAdminUserProfileBody,
+	UpdateUserBody,
+	UserQueryParams,
+} from '@/validations/users';
 
-import { assertCanAssignRoles } from './role-guard';
+import { assertCanAssignRoles, isAdministrator } from './role-guard';
 
 type AssignableRole = Awaited<ReturnType<typeof userData.getAssignableRoles>>[number];
 
@@ -84,6 +90,65 @@ export const getById = async (userId: string) => {
 	};
 };
 
+const mapAdminProfile = (
+	user: NonNullable<Awaited<ReturnType<typeof userData.getAdminProfile>>>,
+) => {
+	if (!user.profile) {
+		throw new NotFoundError('El perfil del usuario solicitado no existe.');
+	}
+
+	return {
+		id: user.id,
+		email: user.email,
+		firstName: user.profile.firstName,
+		lastName: user.profile.lastName,
+		active: user.status === 'ACTIVE',
+		profileUpdatedAt: user.profile.updatedAt,
+	};
+};
+
+export const getAdminProfile = async (userId: string) => {
+	const user = await userData.getAdminProfile(userId);
+
+	if (!user) {
+		throw new NotFoundError('El usuario solicitado no existe.');
+	}
+
+	return mapAdminProfile(user);
+};
+
+export const updateAdminProfile = async (
+	userId: string,
+	body: UpdateAdminUserProfileBody,
+	actingUser: SessionUser,
+) => {
+	const result = await userData.updateAdminProfile(userId, body, isAdministrator(actingUser));
+
+	if (result.outcome === 'UPDATED') {
+		return mapAdminProfile(result.user);
+	}
+
+	if (result.outcome === 'NOT_FOUND') {
+		throw new NotFoundError('El usuario o su perfil no existe.');
+	}
+
+	if (result.outcome === 'INACTIVE') {
+		throw new ConflictError('No se puede editar el perfil de un usuario inactivo.');
+	}
+
+	if (result.outcome === 'SYSTEM_ROLE') {
+		throw new AuthorizationError('No tienes permiso para editar un usuario de sistema.');
+	}
+
+	if (result.outcome === 'CONFLICT') {
+		throw new ConflictError(
+			'El perfil fue modificado por otra persona. Recarga los datos antes de guardar.',
+		);
+	}
+
+	throw new ConflictError('No fue posible actualizar el perfil.');
+};
+
 export const update = async (userId: string, body: UpdateUserBody, actingUser: SessionUser) => {
 	const existing = await userData.record(userId).getUnique();
 
@@ -135,6 +200,8 @@ export const userService = {
 	getAll,
 	create,
 	getById,
+	getAdminProfile,
+	updateAdminProfile,
 	update,
 	remove,
 	getRolesByUserId: userData.getRolesByUserId,

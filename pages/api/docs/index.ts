@@ -5,7 +5,7 @@ const html = `<!DOCTYPE html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Canchago API Docs</title>
+    <title>CanchaGO API Docs</title>
     <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css" />
     <style>
       /* Oculta el campo de URL del spec para evitar confusión */

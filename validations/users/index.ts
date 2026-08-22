@@ -39,6 +39,23 @@ export const userParamsSchema = z.object({
 	userId: z.string().uuid(VALIDATION_MESSAGES.UUID),
 });
 
+const profileNameSchema = z
+	.string()
+	.trim()
+	.min(1, VALIDATION_MESSAGES.REQUIRED)
+	.max(100, VALIDATION_MESSAGES.MAX_LENGTH(100));
+
+export const updateAdminUserProfileSchema = z
+	.object({
+		firstName: profileNameSchema.optional(),
+		lastName: profileNameSchema.optional(),
+		expectedProfileUpdatedAt: z.iso.datetime({ offset: true }),
+	})
+	.strict()
+	.refine(body => body.firstName !== undefined || body.lastName !== undefined, {
+		message: 'Debes enviar al menos un dato de perfil para actualizar.',
+	});
+
 export const userRolesQuerySchema = z.object({
 	page: z.coerce.number().int().min(1, VALIDATION_MESSAGES.MIN_VALUE(1)).optional(),
 	pageSize: z.coerce
@@ -66,4 +83,5 @@ export type CreateUserBody = z.infer<typeof createUserSchema>;
 export type UpdateUserBody = z.infer<typeof updateUserSchema>;
 export type UserQueryParams = z.infer<typeof userQuerySchema>;
 export type UserParams = z.infer<typeof userParamsSchema>;
+export type UpdateAdminUserProfileBody = z.infer<typeof updateAdminUserProfileSchema>;
 export type UserRolesQuery = z.infer<typeof userRolesQuerySchema>;

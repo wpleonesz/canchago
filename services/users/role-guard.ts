@@ -4,7 +4,7 @@ import type { SessionUser } from '@/lib/session';
 
 const ADMIN_ROLE_CODE = 'administrador';
 
-const isAdmin = (actingUser: SessionUser): boolean =>
+export const isAdministrator = (actingUser: SessionUser): boolean =>
 	actingUser.roles.some(role => role.code === ADMIN_ROLE_CODE);
 
 /**
@@ -16,7 +16,7 @@ export const assertCanAssignRoles = async (
 	actingUser: SessionUser,
 	roleIds: string[],
 ): Promise<void> => {
-	if (roleIds.length === 0 || isAdmin(actingUser)) {
+	if (roleIds.length === 0 || isAdministrator(actingUser)) {
 		return;
 	}
 

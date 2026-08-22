@@ -6,7 +6,12 @@ import { ConflictError } from '@/errors/conflict-error';
 import { env } from '@/lib/config/env';
 import { normalizePagination } from '@/helper/pagination';
 import type { SessionPermission, SessionRole, SessionUser } from '@/lib/session';
-import type { CreateUserBody, UpdateUserBody, UserQueryParams } from '@/validations/users';
+import type {
+	CreateUserBody,
+	UpdateAdminUserProfileBody,
+	UpdateUserBody,
+	UserQueryParams,
+} from '@/validations/users';
 
 import { assertKeepsAtLeastOneAdmin } from './role-guard';
 
@@ -218,6 +223,83 @@ const selectUserFields = {
 		},
 	},
 };
+
+const selectAdminProfileFields = {
+	id: true,
+	email: true,
+	status: true,
+	profile: {
+		select: {
+			firstName: true,
+			lastName: true,
+			updatedAt: true,
+		},
+	},
+} satisfies Prisma.UserSelect;
+
+export const getAdminProfile = async (userId: string) =>
+	prisma.user.findUnique({
+		where: { id: userId },
+		select: selectAdminProfileFields,
+	});
+
+export type AdminProfileUpdateResult =
+	| { outcome: 'UPDATED'; user: NonNullable<Awaited<ReturnType<typeof getAdminProfile>>> }
+	| { outcome: 'NOT_FOUND' | 'INACTIVE' | 'SYSTEM_ROLE' | 'CONFLICT' };
+
+export const updateAdminProfile = async (
+	userId: string,
+	data: UpdateAdminUserProfileBody,
+	actorIsAdministrator: boolean,
+): Promise<AdminProfileUpdateResult> =>
+	prisma.$transaction(async transaction => {
+		const target = await transaction.user.findUnique({
+			where: { id: userId },
+			select: {
+				status: true,
+				profile: { select: { updatedAt: true } },
+				userRoles: { select: { role: { select: { isSystem: true } } } },
+			},
+		});
+
+		if (!target?.profile) {
+			return { outcome: 'NOT_FOUND' };
+		}
+
+		if (target.status !== 'ACTIVE') {
+			return { outcome: 'INACTIVE' };
+		}
+
+		if (!actorIsAdministrator && target.userRoles.some(({ role }) => role.isSystem)) {
+			return { outcome: 'SYSTEM_ROLE' };
+		}
+
+		const update = await transaction.userProfile.updateMany({
+			where: {
+				userId,
+				updatedAt: new Date(data.expectedProfileUpdatedAt),
+			},
+			data: {
+				...(data.firstName !== undefined ? { firstName: data.firstName } : {}),
+				...(data.lastName !== undefined ? { lastName: data.lastName } : {}),
+			},
+		});
+
+		if (update.count === 0) {
+			return { outcome: 'CONFLICT' };
+		}
+
+		const user = await transaction.user.findUnique({
+			where: { id: userId },
+			select: selectAdminProfileFields,
+		});
+
+		if (!user) {
+			return { outcome: 'NOT_FOUND' };
+		}
+
+		return { outcome: 'UPDATED', user };
+	});
 
 export const getAll = async (filters: UserQueryParams) => {
 	const { skip, take, meta } = normalizePagination(filters);

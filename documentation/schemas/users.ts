@@ -42,6 +42,23 @@ export const CreateUserBodySchema = z.object({
 
 export const UpdateUserBodySchema = CreateUserBodySchema.partial();
 
+export const AdminUserProfileSchema = z.object({
+	id: z.string().uuid(),
+	email: z.string().email(),
+	firstName: z.string().min(1).max(100),
+	lastName: z.string().min(1).max(100),
+	active: z.boolean(),
+	profileUpdatedAt: z.string().datetime(),
+});
+
+export const UpdateAdminUserProfileBodySchema = z
+	.object({
+		firstName: z.string().trim().min(1).max(100).optional(),
+		lastName: z.string().trim().min(1).max(100).optional(),
+		expectedProfileUpdatedAt: z.string().datetime(),
+	})
+	.strict();
+
 export const UserListResponseSchema = z.object({
 	data: z.array(UserResponseSchema),
 	meta: PaginationMetaSchema,
@@ -51,6 +68,8 @@ registry.register('UserResponse', UserResponseSchema);
 registry.register('UserRole', UserRoleSchema);
 registry.register('CreateUserBody', CreateUserBodySchema);
 registry.register('UpdateUserBody', UpdateUserBodySchema);
+registry.register('AdminUserProfile', AdminUserProfileSchema);
+registry.register('UpdateAdminUserProfileBody', UpdateAdminUserProfileBodySchema);
 registry.register('UserListResponse', UserListResponseSchema);
 
 const errorResponses = {
@@ -272,6 +291,71 @@ registry.registerPath({
 	responses: {
 		204: {
 			description: 'Usuario eliminado',
+		},
+		...errorResponses,
+	},
+});
+
+registry.registerPath({
+	method: 'get',
+	path: '/users/{userId}/profile',
+	tags: ['Users'],
+	security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+	description:
+		'Obtiene el perfil mínimo para edición administrativa. Requiere `users.read`; no expone credenciales, identificación, roles ni permisos.',
+	parameters: [userIdParam],
+	responses: {
+		200: {
+			description: 'Perfil administrativo encontrado',
+			content: {
+				'application/json': {
+					schema: z.object({ data: AdminUserProfileSchema }),
+				},
+			},
+		},
+		...errorResponses,
+	},
+});
+
+registry.registerPath({
+	method: 'patch',
+	path: '/users/{userId}/profile',
+	tags: ['Users'],
+	security: [{ cookieAuth: [] }, { bearerAuth: [] }],
+	description:
+		'Actualiza únicamente firstName/lastName con control optimista. Requiere `users.update`. Rechaza campos desconocidos, usuarios inactivos, conflictos concurrentes y la edición de usuarios con roles de sistema por actores no Administrador.',
+	parameters: [userIdParam],
+	requestBody: {
+		required: true,
+		content: {
+			'application/json': {
+				schema: {
+					type: 'object',
+					additionalProperties: false,
+					required: ['expectedProfileUpdatedAt'],
+					properties: {
+						firstName: { type: 'string', minLength: 1, maxLength: 100 },
+						lastName: { type: 'string', minLength: 1, maxLength: 100 },
+						expectedProfileUpdatedAt: { type: 'string', format: 'date-time' },
+					},
+					anyOf: [{ required: ['firstName'] }, { required: ['lastName'] }],
+				},
+				example: {
+					firstName: 'María José',
+					lastName: 'Núñez',
+					expectedProfileUpdatedAt: '2026-08-21T12:00:00.000Z',
+				},
+			},
+		},
+	},
+	responses: {
+		200: {
+			description: 'Perfil actualizado',
+			content: {
+				'application/json': {
+					schema: z.object({ data: AdminUserProfileSchema }),
+				},
+			},
 		},
 		...errorResponses,
 	},

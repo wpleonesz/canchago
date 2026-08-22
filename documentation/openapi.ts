@@ -13,9 +13,9 @@ export const generateOpenApiSpec = (): OpenAPIObject => {
 	return generator.generateDocument({
 		openapi: '3.0.3',
 		info: {
-			title: 'Canchago API',
+			title: 'CanchaGO API',
 			version: '1.0.0',
-			description: 'Documentación de la API REST de Canchago.',
+			description: 'Documentación de la API REST de CanchaGO.',
 		},
 		servers: [
 			{
