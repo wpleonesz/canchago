@@ -47,14 +47,12 @@ vi.mock('@/middleware/auth', () => ({
 }));
 
 const getById = vi.fn();
-const addRoleToUser = vi.fn();
-const assertCanAssignRoles = vi.fn();
+const addRolesToUser = vi.fn();
 
 vi.mock('@/services/users', () => ({
 	userService: {
 		getById: (...args: unknown[]) => getById(...args),
-		addRoleToUser: (...args: unknown[]) => addRoleToUser(...args),
-		assertCanAssignRoles: (...args: unknown[]) => assertCanAssignRoles(...args),
+		addRolesToUser: (...args: unknown[]) => addRolesToUser(...args),
 	},
 }));
 
@@ -63,13 +61,12 @@ import { createMockResponse } from '../helpers/mock-next-response';
 describe('POST /api/users/{userId}/roles — escalation guard wiring', () => {
 	beforeEach(() => {
 		getById.mockReset();
-		addRoleToUser.mockReset();
-		assertCanAssignRoles.mockReset();
+		addRolesToUser.mockReset();
 		getById.mockResolvedValue({ id: TARGET_USER_ID, roles: [] });
 	});
 
-	it('rejects with 403 and never assigns the role when the guard rejects a system role', async () => {
-		assertCanAssignRoles.mockRejectedValueOnce(
+	it('returns 403 when the service rejects a system role', async () => {
+		addRolesToUser.mockRejectedValueOnce(
 			new AuthorizationError('No tienes permiso para asignar un rol de sistema.'),
 		);
 
@@ -87,14 +84,12 @@ describe('POST /api/users/{userId}/roles — escalation guard wiring', () => {
 
 		await handler(request, response);
 
-		expect(assertCanAssignRoles).toHaveBeenCalledWith(NON_ADMIN_USER, [SYSTEM_ROLE_ID]);
-		expect(addRoleToUser).not.toHaveBeenCalled();
+		expect(addRolesToUser).toHaveBeenCalledWith(TARGET_USER_ID, [SYSTEM_ROLE_ID], NON_ADMIN_USER);
 		expect(response.statusCode).toBe(403);
 	});
 
-	it('calls the guard before assigning, and proceeds when it allows the role', async () => {
-		assertCanAssignRoles.mockResolvedValueOnce(undefined);
-		addRoleToUser.mockResolvedValueOnce(undefined);
+	it('delegates the complete role set to the service in one call', async () => {
+		addRolesToUser.mockResolvedValueOnce(undefined);
 		getById.mockResolvedValueOnce({ id: TARGET_USER_ID, roles: [] }).mockResolvedValueOnce({
 			id: TARGET_USER_ID,
 			roles: [{ id: SYSTEM_ROLE_ID, code: 'gestor-de-cancha' }],
@@ -114,8 +109,8 @@ describe('POST /api/users/{userId}/roles — escalation guard wiring', () => {
 
 		await handler(request, response);
 
-		expect(assertCanAssignRoles).toHaveBeenCalledWith(NON_ADMIN_USER, [SYSTEM_ROLE_ID]);
-		expect(addRoleToUser).toHaveBeenCalledWith(TARGET_USER_ID, SYSTEM_ROLE_ID);
+		expect(addRolesToUser).toHaveBeenCalledTimes(1);
+		expect(addRolesToUser).toHaveBeenCalledWith(TARGET_USER_ID, [SYSTEM_ROLE_ID], NON_ADMIN_USER);
 		expect(response.statusCode).toBe(201);
 	});
 });

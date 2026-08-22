@@ -1,32 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
-import { z } from 'zod';
 
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
 import { routerOptions } from '@/lib/api/router-config';
 import { userService } from '@/services/users';
-import { userParamsSchema } from '@/validations/users';
+import { assignUserRolesSchema, userParamsSchema, userRolesQuerySchema } from '@/validations/users';
 import { throwValidationError } from '@/lib/errors/throw-validation-error';
-import { NotFoundError } from '@/errors/not-found-error';
 import { AuthenticationError } from '@/errors/auth';
-import { VALIDATION_MESSAGES } from '@/validations/schemas';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
-
-const userRolesQuerySchema = z.object({
-	page: z.coerce.number().int().min(1, VALIDATION_MESSAGES.MIN_VALUE(1)).optional(),
-	pageSize: z.coerce
-		.number()
-		.int()
-		.min(1, VALIDATION_MESSAGES.MIN_VALUE(1))
-		.max(100, VALIDATION_MESSAGES.MAX_VALUE(100))
-		.optional(),
-});
-
-const assignRolesSchema = z.object({
-	roleIds: z.array(z.string().uuid(VALIDATION_MESSAGES.UUID)).min(1, VALIDATION_MESSAGES.REQUIRED),
-});
 
 handler
 	.use(auth)
@@ -37,23 +20,21 @@ handler
 		throwValidationError(parsedParams);
 		throwValidationError(parsedQuery);
 
-		const user = await userService.getById(parsedParams.data.userId);
-		if (!user) {
-			throw new NotFoundError('El usuario solicitado no existe.');
-		}
-
-		const roles = user.roles || [];
+		await userService.getById(parsedParams.data.userId);
+		const result = await userService.getRolesByUserId(
+			parsedParams.data.userId,
+			parsedQuery.data.page,
+			parsedQuery.data.pageSize,
+		);
 
 		res.status(200).json({
-			data: roles,
-			meta: {
-				total: roles.length,
-			},
+			data: result.roles,
+			meta: result.meta,
 		});
 	})
 	.post(access('users.manage'), async (req, res): Promise<void> => {
 		const parsedParams = userParamsSchema.safeParse({ userId: req.query.userId });
-		const parsedBody = assignRolesSchema.safeParse(req.body);
+		const parsedBody = assignUserRolesSchema.safeParse(req.body);
 
 		throwValidationError(parsedParams);
 		throwValidationError(parsedBody);
@@ -62,16 +43,8 @@ handler
 			throw new AuthenticationError();
 		}
 
-		const user = await userService.getById(parsedParams.data.userId);
-		if (!user) {
-			throw new NotFoundError('El usuario solicitado no existe.');
-		}
-
-		await userService.assertCanAssignRoles(req.user, parsedBody.data.roleIds);
-
-		for (const roleId of parsedBody.data.roleIds) {
-			await userService.addRoleToUser(parsedParams.data.userId, roleId);
-		}
+		await userService.getById(parsedParams.data.userId);
+		await userService.addRolesToUser(parsedParams.data.userId, parsedBody.data.roleIds, req.user);
 
 		const updatedUser = await userService.getById(parsedParams.data.userId);
 

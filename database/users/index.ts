@@ -277,52 +277,208 @@ export const create = async (data: CreateUserBody) => {
 	}
 };
 
-export const getRolesByUserId = async (userId: string) => {
-	const userRoles = await prisma.userRole.findMany({
-		where: { userId },
-		include: {
-			role: true,
+export const createWithRoles = async (data: CreateUserBody) => {
+	try {
+		return await prisma.$transaction(async transaction =>
+			transaction.user.create({
+				data: {
+					email: data.email,
+					username: data.email.split('@')[0] || data.email,
+					status: 'ACTIVE',
+					profile: {
+						create: {
+							firstName: data.firstName,
+							lastName: data.lastName,
+						},
+					},
+					...(data.roleIds && data.roleIds.length > 0
+						? {
+								userRoles: {
+									create: data.roleIds.map(roleId => ({
+										roleId,
+										organizationId: data.organizationId,
+									})),
+								},
+							}
+						: {}),
+				},
+				select: selectUserFields,
+			}),
+		);
+	} catch (error) {
+		if (isPrismaUniqueConstraintError(error)) {
+			throw new ConflictError('Ya existe un usuario con ese correo electrónico.');
+		}
+
+		throw error;
+	}
+};
+
+export const getRolesByUserId = async (userId: string, page = 1, pageSize = 20) => {
+	const where: Prisma.UserRoleWhereInput = { userId };
+	const [userRoles, total] = await Promise.all([
+		prisma.userRole.findMany({
+			where,
+			include: {
+				role: true,
+			},
+			orderBy: { role: { name: 'asc' } },
+			skip: (page - 1) * pageSize,
+			take: pageSize,
+		}),
+		prisma.userRole.count({ where }),
+	]);
+
+	return {
+		roles: userRoles.map(userRole => userRole.role),
+		meta: {
+			page,
+			pageSize,
+			total,
+			totalPages: Math.ceil(total / pageSize),
+		},
+	};
+};
+
+export const getAssignableRoles = async (roleIds: string[]) =>
+	prisma.role.findMany({
+		where: {
+			id: { in: roleIds },
+			deletedAt: null,
+		},
+		select: {
+			id: true,
+			organizationId: true,
+			isSystem: true,
 		},
 	});
 
-	return userRoles.map(ur => ur.role);
-};
-
-export const assignRolesToUser = async (userId: string, roleIds: string[]) =>
+export const assignRolesToUser = async (
+	userId: string,
+	roles: Array<{ id: string; organizationId: string | null }>,
+) =>
 	prisma.$transaction(async transaction => {
-		await assertKeepsAtLeastOneAdmin(transaction, userId, { newRoleIds: roleIds });
+		await assertKeepsAtLeastOneAdmin(transaction, userId, {
+			newRoleIds: roles.map(role => role.id),
+		});
 
 		await transaction.userRole.deleteMany({
 			where: { userId },
 		});
 
-		if (roleIds.length > 0) {
+		if (roles.length > 0) {
 			await transaction.userRole.createMany({
-				data: roleIds.map(roleId => ({
+				data: roles.map(role => ({
 					userId,
-					roleId,
+					roleId: role.id,
+					organizationId: role.organizationId,
+				})),
+			});
+		}
+	});
+
+export const updateWithRoles = async (
+	userId: string,
+	data: UpdateUserBody,
+	roles?: Array<{ id: string; organizationId: string | null }>,
+) =>
+	prisma.$transaction(async transaction => {
+		if (roles) {
+			await assertKeepsAtLeastOneAdmin(transaction, userId, {
+				newRoleIds: roles.map(role => role.id),
+			});
+		}
+
+		await transaction.user.update({
+			where: { id: userId },
+			data: {
+				...(data.email && { email: data.email }),
+				...(data.firstName || data.lastName
+					? {
+							profile: {
+								update: {
+									...(data.firstName && { firstName: data.firstName }),
+									...(data.lastName && { lastName: data.lastName }),
+								},
+							},
+						}
+					: {}),
+			},
+		});
+
+		if (roles) {
+			await transaction.userRole.deleteMany({ where: { userId } });
+
+			if (roles.length > 0) {
+				await transaction.userRole.createMany({
+					data: roles.map(role => ({
+						userId,
+						roleId: role.id,
+						organizationId: role.organizationId,
+					})),
+				});
+			}
+		}
+
+		return transaction.user.findUniqueOrThrow({
+			where: { id: userId },
+			include: {
+				profile: true,
+				userRoles: { include: { role: true } },
+			},
+		});
+	});
+
+export const addRolesToUser = async (
+	userId: string,
+	roles: Array<{ id: string; organizationId: string | null }>,
+) =>
+	prisma.$transaction(async transaction => {
+		const existing = await transaction.userRole.findMany({
+			where: {
+				userId,
+				roleId: { in: roles.map(role => role.id) },
+			},
+			select: { roleId: true },
+		});
+		const existingRoleIds = new Set(existing.map(userRole => userRole.roleId));
+		const missingRoles = roles.filter(role => !existingRoleIds.has(role.id));
+
+		if (missingRoles.length > 0) {
+			await transaction.userRole.createMany({
+				data: missingRoles.map(role => ({
+					userId,
+					roleId: role.id,
+					organizationId: role.organizationId,
 				})),
 			});
 		}
 	});
 
 export const addRoleToUser = async (userId: string, roleId: string) => {
-	await prisma.$transaction(async transaction => {
-		await transaction.userRole.create({
-			data: { userId, roleId },
-		});
+	const role = await prisma.role.findFirst({
+		where: { id: roleId, deletedAt: null },
+		select: { id: true, organizationId: true },
 	});
+
+	if (!role) {
+		return false;
+	}
+
+	await addRolesToUser(userId, [role]);
+	return true;
 };
 
-export const removeRoleFromUser = async (userId: string, roleId: string) => {
-	await prisma.$transaction(async transaction => {
+export const removeRoleFromUser = async (userId: string, roleId: string) =>
+	prisma.$transaction(async transaction => {
 		await assertKeepsAtLeastOneAdmin(transaction, userId, { removingRoleId: roleId });
 
-		await transaction.userRole.deleteMany({
+		const result = await transaction.userRole.deleteMany({
 			where: { userId, roleId },
 		});
+
+		return result.count > 0;
 	});
-};
 
 export const record = (userId: string) => ({
 	getUnique: async () =>

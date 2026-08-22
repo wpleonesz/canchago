@@ -1,10 +1,34 @@
 import * as userData from '@/database/users';
+import { BusinessRuleError } from '@/errors/business-rule-error';
 import { ConflictError } from '@/errors/conflict-error';
 import { NotFoundError } from '@/errors/not-found-error';
 import type { SessionUser } from '@/lib/session';
 import type { CreateUserBody, UpdateUserBody, UserQueryParams } from '@/validations/users';
 
 import { assertCanAssignRoles } from './role-guard';
+
+type AssignableRole = Awaited<ReturnType<typeof userData.getAssignableRoles>>[number];
+
+const validateAssignableRoles = async (
+	roleIds: string[],
+	organizationId?: string,
+): Promise<AssignableRole[]> => {
+	const uniqueRoleIds = [...new Set(roleIds)];
+	const roles = await userData.getAssignableRoles(uniqueRoleIds);
+
+	if (roles.length !== uniqueRoleIds.length) {
+		throw new BusinessRuleError('Uno o más roles no existen o ya no están activos.');
+	}
+
+	if (
+		organizationId &&
+		roles.some(role => role.organizationId !== null && role.organizationId !== organizationId)
+	) {
+		throw new BusinessRuleError('Todos los roles deben pertenecer a la organización indicada.');
+	}
+
+	return roles;
+};
 
 export const getAll = async (query: UserQueryParams) => {
 	const { users, meta } = await userData.getAll(query);
@@ -23,17 +47,12 @@ export const getAll = async (query: UserQueryParams) => {
 };
 
 export const create = async (body: CreateUserBody, actingUser: SessionUser) => {
-	if (body.roleIds && body.roleIds.length > 0) {
+	if (body.roleIds) {
 		await assertCanAssignRoles(actingUser, body.roleIds);
+		await validateAssignableRoles(body.roleIds, body.organizationId);
 	}
 
-	const user = await userData.create(body);
-
-	if (body.roleIds && body.roleIds.length > 0) {
-		await userData.assignRolesToUser(user.id, body.roleIds);
-	}
-
-	const userWithRoles = await userData.record(user.id).getUnique();
+	const userWithRoles = await userData.createWithRoles(body);
 
 	return {
 		id: userWithRoles.id,
@@ -77,13 +96,11 @@ export const update = async (userId: string, body: UpdateUserBody, actingUser: S
 	}
 
 	try {
-		const user = await userData.record(userId).update(body);
-
-		if (body.roleIds !== undefined) {
-			await userData.assignRolesToUser(user.id, body.roleIds);
-		}
-
-		const userWithRoles = await userData.record(user.id).getUnique();
+		const roles =
+			body.roleIds === undefined
+				? undefined
+				: await validateAssignableRoles(body.roleIds, body.organizationId);
+		const userWithRoles = await userData.updateWithRoles(userId, body, roles);
 
 		return {
 			id: userWithRoles.id,
@@ -121,8 +138,32 @@ export const userService = {
 	update,
 	remove,
 	getRolesByUserId: userData.getRolesByUserId,
-	assignRolesToUser: userData.assignRolesToUser,
+	assignRolesToUser: async (
+		userId: string,
+		roleIds: string[],
+		actingUser: SessionUser,
+		organizationId?: string,
+	): Promise<void> => {
+		await assertCanAssignRoles(actingUser, roleIds);
+		const roles = await validateAssignableRoles(roleIds, organizationId);
+		await userData.assignRolesToUser(userId, roles);
+	},
+	addRolesToUser: async (
+		userId: string,
+		roleIds: string[],
+		actingUser: SessionUser,
+	): Promise<void> => {
+		await assertCanAssignRoles(actingUser, roleIds);
+		const roles = await validateAssignableRoles(roleIds);
+		await userData.addRolesToUser(userId, roles);
+	},
 	addRoleToUser: userData.addRoleToUser,
-	removeRoleFromUser: userData.removeRoleFromUser,
+	removeRoleFromUser: async (userId: string, roleId: string): Promise<void> => {
+		const removed = await userData.removeRoleFromUser(userId, roleId);
+
+		if (!removed) {
+			throw new NotFoundError('El rol no está asignado al usuario.');
+		}
+	},
 	assertCanAssignRoles,
 };

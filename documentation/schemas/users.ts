@@ -13,10 +13,12 @@ const userIdParam = {
 };
 import { ErrorResponseSchema, PaginationMetaSchema } from '@/documentation/responses/common';
 
-const RoleSchema = z.object({
+export const UserRoleSchema = z.object({
 	id: z.string().uuid(),
 	code: z.string(),
 	name: z.string(),
+	description: z.string().nullable(),
+	organizationId: z.string().uuid().nullable(),
 });
 
 export const UserResponseSchema = z.object({
@@ -27,7 +29,7 @@ export const UserResponseSchema = z.object({
 	active: z.boolean(),
 	createdAt: z.string().datetime(),
 	updatedAt: z.string().datetime().optional(),
-	roles: z.array(RoleSchema).optional(),
+	roles: z.array(UserRoleSchema).optional(),
 });
 
 export const CreateUserBodySchema = z.object({
@@ -46,6 +48,7 @@ export const UserListResponseSchema = z.object({
 });
 
 registry.register('UserResponse', UserResponseSchema);
+registry.register('UserRole', UserRoleSchema);
 registry.register('CreateUserBody', CreateUserBodySchema);
 registry.register('UpdateUserBody', UpdateUserBodySchema);
 registry.register('UserListResponse', UserListResponseSchema);
@@ -86,6 +89,14 @@ const errorResponses = {
 	409: {
 		description:
 			'Conflicto: el recurso ya existe, o la operación dejaría la plataforma sin ningún administrador activo',
+		content: {
+			'application/json': {
+				schema: ErrorResponseSchema,
+			},
+		},
+	},
+	422: {
+		description: 'Rol inexistente, eliminado o perteneciente a otra organización',
 		content: {
 			'application/json': {
 				schema: ErrorResponseSchema,
@@ -293,7 +304,7 @@ registry.registerPath({
 			content: {
 				'application/json': {
 					schema: z.object({
-						data: z.array(RoleSchema),
+						data: z.array(UserRoleSchema),
 						meta: PaginationMetaSchema,
 					}),
 				},
@@ -331,7 +342,7 @@ registry.registerPath({
 			content: {
 				'application/json': {
 					schema: z.object({
-						data: z.array(RoleSchema),
+						data: z.array(UserRoleSchema),
 					}),
 				},
 			},
