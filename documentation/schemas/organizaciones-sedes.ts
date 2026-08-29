@@ -32,6 +32,9 @@ export const OrganizationResponseSchema = z.object({
 	status: z.string(),
 	createdAt: z.string().datetime(),
 	updatedAt: z.string().datetime(),
+	// Solo presente en el listado (GET /organizaciones): conteo de sedes activas, resuelto con
+	// _count en la misma consulta (sin N+1). Ausente en las respuestas de detalle/mutación.
+	venuesCount: z.number().int().optional(),
 });
 
 export const CreateOrganizationBodySchema = z.object({
@@ -43,7 +46,11 @@ export const CreateOrganizationBodySchema = z.object({
 	domain: z.string().max(255).optional(),
 });
 
-export const UpdateOrganizationBodySchema = CreateOrganizationBodySchema.partial();
+export const UpdateOrganizationBodySchema = CreateOrganizationBodySchema.partial().extend({
+	// Concurrencia optimista (feature 019): el timestamp updatedAt recibido en el último GET.
+	// Si no coincide con el real, PATCH responde 409 sin aplicar ningún cambio.
+	expectedUpdatedAt: z.string().datetime(),
+});
 
 export const OrganizationListResponseSchema = z.object({
 	data: z.array(OrganizationResponseSchema),
@@ -69,7 +76,10 @@ export const CreateSedeBodySchema = z.object({
 	email: z.string().email().optional(),
 });
 
-export const UpdateSedeBodySchema = CreateSedeBodySchema.partial();
+export const UpdateSedeBodySchema = CreateSedeBodySchema.partial().extend({
+	// Concurrencia optimista (feature 019): mismo criterio que UpdateOrganizationBodySchema.
+	expectedUpdatedAt: z.string().datetime(),
+});
 
 export const SedeListResponseSchema = z.object({
 	data: z.array(SedeResponseSchema),
@@ -135,7 +145,7 @@ registry.registerPath({
 	tags: ['Organizaciones'],
 	security: [{ cookieAuth: [] }],
 	description:
-		'Obtiene una lista paginada de organizaciones. Requiere permiso `organizaciones.read`.',
+		'Obtiene una lista paginada de organizaciones. Requiere permiso `organizaciones.read`. Un actor sin el rol global Administrador solo ve las organizaciones donde tiene alcance. Cada elemento incluye `venuesCount` (conteo de sedes activas, sin consultas adicionales por fila).',
 	parameters: [
 		{
 			name: 'page',
@@ -186,7 +196,8 @@ registry.registerPath({
 	path: '/organizaciones',
 	tags: ['Organizaciones'],
 	security: [{ cookieAuth: [] }],
-	description: 'Crea una nueva organización. Requiere permiso `organizaciones.manage`.',
+	description:
+		'Crea una nueva organización. Requiere permiso `organizaciones.manage`. El nombre es único a nivel de plataforma (comparación case-insensitive tras normalizar espacios) — un nombre ya usado responde 409.',
 	requestBody: {
 		required: true,
 		content: {
@@ -224,7 +235,8 @@ registry.registerPath({
 	path: '/organizaciones/{organizationId}',
 	tags: ['Organizaciones'],
 	security: [{ cookieAuth: [] }],
-	description: 'Obtiene una organización por ID. Requiere permiso `organizaciones.read`.',
+	description:
+		'Obtiene una organización por ID. Requiere permiso `organizaciones.read` y alcance sobre esa organización — un actor no administrador global sin alcance recibe 404 opaco, no 403 (no revela que el recurso existe fuera de su alcance).',
 	parameters: [organizationIdParam],
 	responses: {
 		200: {
@@ -246,16 +258,18 @@ registry.registerPath({
 	path: '/organizaciones/{organizationId}',
 	tags: ['Organizaciones'],
 	security: [{ cookieAuth: [] }],
-	description: 'Actualiza una organización. Requiere permiso `organizaciones.manage`.',
+	description:
+		'Actualiza una organización. Requiere permiso `organizaciones.manage` y alcance sobre la organización (un actor no administrador global sin alcance recibe 404 opaco, no 403). `expectedUpdatedAt` es obligatorio: si no coincide con el `updatedAt` real, responde 409 sin aplicar cambios (concurrencia optimista).',
 	parameters: [organizationIdParam],
 	requestBody: {
-		required: false,
+		required: true,
 		content: {
 			'application/json': {
 				schema: UpdateOrganizationBodySchema,
 				example: {
 					name: 'Mi Organización Actualizada',
 					email: 'newemail@miorg.com',
+					expectedUpdatedAt: '2026-08-29T12:00:00.000Z',
 				},
 			},
 		},
@@ -350,7 +364,8 @@ registry.registerPath({
 	path: '/organizaciones/{organizationId}/sedes',
 	tags: ['Sedes'],
 	security: [{ cookieAuth: [] }],
-	description: 'Crea una nueva sede. Requiere permiso `organizaciones.manage`.',
+	description:
+		'Crea una nueva sede. Requiere permiso `organizaciones.manage` y alcance sobre `organizationId`. Si la organización no existe (o está borrada), responde 404 en vez de un error genérico.',
 	parameters: [organizationIdParam],
 	requestBody: {
 		required: true,
@@ -387,7 +402,8 @@ registry.registerPath({
 	path: '/organizaciones/{organizationId}/sedes/{sedeId}',
 	tags: ['Sedes'],
 	security: [{ cookieAuth: [] }],
-	description: 'Obtiene una sede por ID. Requiere permiso `organizaciones.read`.',
+	description:
+		'Obtiene una sede por ID. Requiere permiso `organizaciones.read` y alcance sobre `organizationId`. La sede debe pertenecer exactamente a esa organización — un `sedeId` real de otra organización responde 404 opaco, nunca los datos de esa sede (feature 019).',
 	parameters: [organizationIdParam, sedeIdParam],
 	responses: {
 		200: {
@@ -409,16 +425,18 @@ registry.registerPath({
 	path: '/organizaciones/{organizationId}/sedes/{sedeId}',
 	tags: ['Sedes'],
 	security: [{ cookieAuth: [] }],
-	description: 'Actualiza una sede. Requiere permiso `organizaciones.manage`.',
+	description:
+		'Actualiza una sede. Requiere permiso `organizaciones.manage` y alcance sobre `organizationId`. La sede debe pertenecer exactamente a esa organización — un `sedeId` real de otra organización responde 404 opaco, nunca los datos de esa sede. `expectedUpdatedAt` es obligatorio (concurrencia optimista, mismo criterio que organizaciones).',
 	parameters: [organizationIdParam, sedeIdParam],
 	requestBody: {
-		required: false,
+		required: true,
 		content: {
 			'application/json': {
 				schema: UpdateSedeBodySchema,
 				example: {
 					name: 'Sede Principal - Centro',
 					phone: '+593988888888',
+					expectedUpdatedAt: '2026-08-29T12:00:00.000Z',
 				},
 			},
 		},

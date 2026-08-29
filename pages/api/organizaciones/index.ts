@@ -26,10 +26,11 @@ handler
 		res.status(200).json(result);
 	})
 	.post(access('organizaciones.manage'), async (req, res): Promise<void> => {
+		if (!req.user) throw new AuthenticationError();
 		const parsed = createOrganizationSchema.safeParse(req.body);
 		throwValidationError(parsed);
 
-		const organization = await organizacionService.create(parsed.data);
+		const organization = await organizacionService.create(parsed.data, req.user);
 
 		res.status(201).json({ data: organization });
 	});

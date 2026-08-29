@@ -57,7 +57,11 @@ const resolveOrganization = async () => {
 	}
 
 	return prisma.organization.create({
-		data: { name: 'Canchago Demo', status: 'ACTIVE' },
+		data: {
+			name: 'Canchago Demo',
+			normalizedName: normalizeName('Canchago Demo'),
+			status: 'ACTIVE',
+		},
 	});
 };
 

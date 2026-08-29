@@ -6,6 +6,7 @@ import { ConflictError } from '@/errors/conflict-error';
 import { NotFoundError } from '@/errors/not-found-error';
 import { env } from '@/lib/config/env';
 import { normalizePagination } from '@/helper/pagination';
+import { normalizeOrganizationIdentity } from '@/helper/organizaciones';
 
 const isPrismaUniqueConstraintError = (
 	error: unknown,
@@ -97,6 +98,7 @@ export const createUserWithAccessRequest = async (
 			const createdOrganization = await transaction.organization.create({
 				data: {
 					name: organization.name,
+					normalizedName: normalizeOrganizationIdentity(organization.name),
 					legalName: organization.legalName || null,
 					taxIdentification: organization.taxIdentification || null,
 					email: organization.email || null,
@@ -126,6 +128,13 @@ export const createUserWithAccessRequest = async (
 		});
 	} catch (error) {
 		if (isPrismaUniqueConstraintError(error)) {
+			const target = error.meta?.target;
+			const fields = Array.isArray(target) ? target : typeof target === 'string' ? [target] : [];
+
+			if (fields.some(field => String(field).includes('normalized_name'))) {
+				throw new ConflictError('Ya existe una organización con ese nombre.');
+			}
+
 			throw new ConflictError('Ya existe una cuenta con ese correo electrónico.');
 		}
 

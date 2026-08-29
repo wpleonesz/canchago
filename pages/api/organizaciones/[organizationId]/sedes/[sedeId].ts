@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
+import { AuthenticationError } from '@/errors';
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
 import { routerOptions } from '@/lib/api/router-config';
@@ -13,29 +14,41 @@ const handler = createRouter<NextApiRequest, NextApiResponse>();
 handler
 	.use(auth)
 	.get(access('organizaciones.read'), async (req, res): Promise<void> => {
+		if (!req.user) throw new AuthenticationError();
 		const parsed = sedeParamsSchema.safeParse(req.query);
 		throwValidationError(parsed);
 
-		const sede = await sedeService.getById(parsed.data.sedeId);
+		const sede = await sedeService.getById(
+			parsed.data.sedeId,
+			parsed.data.organizationId,
+			req.user,
+		);
 
 		res.status(200).json({ data: sede });
 	})
 	.patch(access('organizaciones.manage'), async (req, res): Promise<void> => {
+		if (!req.user) throw new AuthenticationError();
 		const parsedParams = sedeParamsSchema.safeParse(req.query);
 		const parsedBody = updateSedeSchema.safeParse(req.body);
 
 		throwValidationError(parsedParams);
 		throwValidationError(parsedBody);
 
-		const sede = await sedeService.update(parsedParams.data.sedeId, parsedBody.data);
+		const sede = await sedeService.update(
+			parsedParams.data.sedeId,
+			parsedParams.data.organizationId,
+			parsedBody.data,
+			req.user,
+		);
 
 		res.status(200).json({ data: sede });
 	})
 	.delete(access('organizaciones.manage'), async (req, res): Promise<void> => {
+		if (!req.user) throw new AuthenticationError();
 		const parsed = sedeParamsSchema.safeParse(req.query);
 		throwValidationError(parsed);
 
-		await sedeService.remove(parsed.data.sedeId);
+		await sedeService.remove(parsed.data.sedeId, parsed.data.organizationId, req.user);
 
 		res.status(204).end();
 	});

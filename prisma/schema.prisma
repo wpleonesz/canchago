@@ -16,6 +16,7 @@ datasource db {
 model Organization {
   id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name              String    @db.VarChar(150)
+  normalizedName    String    @unique @map("normalized_name") @db.VarChar(150)
   legalName         String?   @map("legal_name") @db.VarChar(200)
   taxIdentification String?   @map("tax_identification") @db.VarChar(30)
   email             String?   @db.VarChar(180)
@@ -32,7 +33,6 @@ model Organization {
   accessRequests OrganizationAccessRequest[]
   auditLogs      AuditLog[]
 
-  @@index([name])
   @@map("organizations")
 }
 
@@ -158,6 +158,10 @@ model Role {
 enum AuditAction {
   ROLE_CREATED
   ROLE_UPDATED
+  ORGANIZATION_CREATED
+  ORGANIZATION_UPDATED
+  VENUE_CREATED
+  VENUE_UPDATED
 }
 
 model AuditLog {

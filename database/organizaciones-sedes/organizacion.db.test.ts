@@ -44,4 +44,28 @@ describe('organizacionDb.getAll scope', () => {
 			}),
 		);
 	});
+
+	it('pide el conteo de sedes activas en la misma consulta (sin N+1) y lo expone como venuesCount', async () => {
+		mocks.findMany.mockResolvedValue([
+			{ id: 'org-1', name: 'Cancha 1', _count: { venues: 3 } },
+			{ id: 'org-2', name: 'Cancha 2', _count: { venues: 0 } },
+		]);
+
+		const result = await getAll(
+			{},
+			{ userId: '123e4567-e89b-42d3-a456-426614174001', isAdministrator: true },
+		);
+
+		expect(mocks.findMany).toHaveBeenCalledWith(
+			expect.objectContaining({
+				select: expect.objectContaining({
+					_count: { select: { venues: { where: { deletedAt: null } } } },
+				}),
+			}),
+		);
+		expect(result.organizations).toEqual([
+			{ id: 'org-1', name: 'Cancha 1', venuesCount: 3 },
+			{ id: 'org-2', name: 'Cancha 2', venuesCount: 0 },
+		]);
+	});
 });

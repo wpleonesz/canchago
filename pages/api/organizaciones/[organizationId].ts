@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createRouter } from 'next-connect';
 
+import { AuthenticationError } from '@/errors';
 import { auth } from '@/middleware/auth';
 import { access } from '@/middleware/access';
 import { routerOptions } from '@/lib/api/router-config';
@@ -16,14 +17,16 @@ const handler = createRouter<NextApiRequest, NextApiResponse>();
 handler
 	.use(auth)
 	.get(access('organizaciones.read'), async (req, res): Promise<void> => {
+		if (!req.user) throw new AuthenticationError();
 		const parsed = organizationParamsSchema.safeParse(req.query);
 		throwValidationError(parsed);
 
-		const organization = await organizacionService.getById(parsed.data.organizationId);
+		const organization = await organizacionService.getById(parsed.data.organizationId, req.user);
 
 		res.status(200).json({ data: organization });
 	})
 	.patch(access('organizaciones.manage'), async (req, res): Promise<void> => {
+		if (!req.user) throw new AuthenticationError();
 		const parsedParams = organizationParamsSchema.safeParse(req.query);
 		const parsedBody = updateOrganizationSchema.safeParse(req.body);
 
@@ -33,15 +36,17 @@ handler
 		const organization = await organizacionService.update(
 			parsedParams.data.organizationId,
 			parsedBody.data,
+			req.user,
 		);
 
 		res.status(200).json({ data: organization });
 	})
 	.delete(access('organizaciones.manage'), async (req, res): Promise<void> => {
+		if (!req.user) throw new AuthenticationError();
 		const parsed = organizationParamsSchema.safeParse(req.query);
 		throwValidationError(parsed);
 
-		await organizacionService.remove(parsed.data.organizationId);
+		await organizacionService.remove(parsed.data.organizationId, req.user);
 
 		res.status(204).end();
 	});

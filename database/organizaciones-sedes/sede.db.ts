@@ -2,16 +2,11 @@ import type { Prisma } from '@/generated/prisma/client';
 import { Prisma as PrismaClient } from '@/generated/prisma/client';
 
 import { prisma } from '@/database/client';
-import { ConflictError } from '@/errors/conflict-error';
 import { NotFoundError } from '@/errors/not-found-error';
 import { normalizePagination } from '@/helper/pagination';
-import type {
-	CreateSedeBody,
-	SedeQueryParams,
-	UpdateSedeBody,
-} from '@/validations/organizaciones-sedes';
+import type { SedeQueryParams } from '@/validations/organizaciones-sedes';
 
-const isPrismaUniqueConstraintError = (
+export const isSedeUniqueConstraintError = (
 	error: unknown,
 ): error is PrismaClient.PrismaClientKnownRequestError =>
 	error instanceof PrismaClient.PrismaClientKnownRequestError && error.code === 'P2002';
@@ -26,7 +21,70 @@ const selectSedeFields = {
 	status: true,
 	createdAt: true,
 	updatedAt: true,
-};
+} satisfies Prisma.VenueSelect;
+
+type TransactionClient = Prisma.TransactionClient;
+
+const createTransactionRepository = (transaction: TransactionClient) => ({
+	findOrganization: (organizationId: string) =>
+		transaction.organization.findFirst({
+			where: { id: organizationId, deletedAt: null },
+			select: { id: true },
+		}),
+
+	// Alcance real: exige que la sede pertenezca a organizationId, no solo que exista por id.
+	// Este es el cambio que cierra el IDOR de sede entre organizaciones (feature 019).
+	findVenue: (venueId: string, organizationId: string) =>
+		transaction.venue.findFirst({
+			where: { id: venueId, organizationId, deletedAt: null },
+			select: selectSedeFields,
+		}),
+
+	createVenue: (
+		organizationId: string,
+		data: { name: string; address: string | null; phone: string | null; email: string | null },
+	) =>
+		transaction.venue.create({
+			data: { ...data, organizationId, status: 'ACTIVE' },
+			select: selectSedeFields,
+		}),
+
+	updateVenue: (
+		venueId: string,
+		organizationId: string,
+		expectedUpdatedAt: Date,
+		data: Prisma.VenueUpdateManyMutationInput,
+	) =>
+		transaction.venue.updateMany({
+			where: { id: venueId, organizationId, updatedAt: expectedUpdatedAt, deletedAt: null },
+			data,
+		}),
+
+	removeVenue: (venueId: string, organizationId: string) =>
+		transaction.venue.updateMany({
+			where: { id: venueId, organizationId, deletedAt: null },
+			data: { deletedAt: new Date() },
+		}),
+
+	writeAudit: (data: {
+		actorUserId: string;
+		organizationId: string;
+		entityId: string;
+		action: 'VENUE_CREATED' | 'VENUE_UPDATED';
+		changes: Prisma.InputJsonValue;
+	}) =>
+		transaction.auditLog.create({
+			data: { ...data, entityType: 'Venue' },
+		}),
+
+	getDetail: (venueId: string, organizationId: string) =>
+		transaction.venue.findFirstOrThrow({
+			where: { id: venueId, organizationId, deletedAt: null },
+			select: selectSedeFields,
+		}),
+});
+
+export type SedeTransactionRepository = ReturnType<typeof createTransactionRepository>;
 
 export const getAll = async (organizationId: string, filters: SedeQueryParams) => {
 	const { skip, take, meta } = normalizePagination(filters);
@@ -59,92 +117,19 @@ export const getAll = async (organizationId: string, filters: SedeQueryParams) =
 	return { venues, meta: meta(total) };
 };
 
-export const create = async (organizationId: string, data: CreateSedeBody) => {
-	try {
-		const venue = await prisma.venue.create({
-			data: {
-				organizationId,
-				name: data.name,
-				address: data.address || null,
-				phone: data.phone || null,
-				email: data.email || null,
-				status: 'ACTIVE',
-			},
-			select: selectSedeFields,
-		});
+export const getUnique = async (venueId: string, organizationId: string) => {
+	const record = await prisma.venue.findFirst({
+		where: { id: venueId, organizationId, deletedAt: null },
+		select: selectSedeFields,
+	});
 
-		return venue;
-	} catch (error) {
-		if (isPrismaUniqueConstraintError(error)) {
-			throw new ConflictError('Ya existe una sede con ese nombre en esta organización.');
-		}
-
-		throw error;
+	if (!record) {
+		throw new NotFoundError('La sede solicitada no existe.');
 	}
+
+	return record;
 };
 
-export const record = (sedeId: string) => ({
-	getUnique: async () => {
-		const record = await prisma.venue.findUnique({
-			where: { id: sedeId },
-			select: { ...selectSedeFields, deletedAt: true },
-		});
-
-		if (!record || record.deletedAt) {
-			throw new NotFoundError('La sede solicitada no existe.');
-		}
-
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const { deletedAt, ...venue } = record;
-		return venue;
-	},
-
-	update: async (data: UpdateSedeBody) => {
-		const venue = await prisma.venue.findUnique({
-			where: { id: sedeId },
-			select: { deletedAt: true },
-		});
-
-		if (!venue || venue.deletedAt) {
-			throw new NotFoundError('La sede solicitada no existe.');
-		}
-
-		try {
-			return await prisma.venue.update({
-				where: { id: sedeId },
-				data: {
-					...(data.name && { name: data.name }),
-					...(data.address !== undefined && { address: data.address || null }),
-					...(data.phone !== undefined && { phone: data.phone || null }),
-					...(data.email !== undefined && { email: data.email || null }),
-				},
-				select: selectSedeFields,
-			});
-		} catch (error) {
-			if (isPrismaUniqueConstraintError(error)) {
-				throw new ConflictError('Ya existe una sede con ese nombre en esta organización.');
-			}
-
-			throw error;
-		}
-	},
-
-	remove: async () => {
-		const venue = await prisma.venue.findUnique({
-			where: { id: sedeId },
-			select: { deletedAt: true },
-		});
-
-		if (!venue || venue.deletedAt) {
-			throw new NotFoundError('La sede solicitada no existe.');
-		}
-
-		return await prisma.venue.update({
-			where: { id: sedeId },
-			data: { deletedAt: new Date() },
-			select: selectSedeFields,
-		});
-	},
-});
-
-export const ESCAPE = ['name', 'address', 'phone', 'email'];
+export const withTransaction = <T>(
+	operation: (repository: SedeTransactionRepository) => Promise<T>,
+) => prisma.$transaction(transaction => operation(createTransactionRepository(transaction)));
