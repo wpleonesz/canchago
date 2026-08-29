@@ -1,27 +1,22 @@
 import { permissionDb } from '@/database/roles-permisos/permission.db';
+import { ValidationError } from '@/errors';
 
 export const permissionService = {
-	async getPermissions(page: number, pageSize: number) {
-		return permissionDb.getPermissions(page, pageSize);
-	},
+	getPermissions: (page: number, pageSize: number, search?: string, module?: string) =>
+		permissionDb.getPermissions(page, pageSize, search, module),
 
-	async getPermissionsByRole(roleId: string) {
-		return permissionDb.getPermissionsByRole(roleId);
-	},
+	getPermissionsByRole: (roleId: string) => permissionDb.getPermissionsByRole(roleId),
 
 	async validatePermissionIds(permissionIds: string[]) {
 		if (permissionIds.length === 0) return [];
-
 		const permissions = await permissionDb.getPermissionsByIds(permissionIds);
 
 		if (permissions.length !== permissionIds.length) {
-			throw new Error('One or more permission IDs are invalid');
+			throw new ValidationError('Uno o más permisos no existen o ya no están disponibles.');
 		}
 
 		return permissions;
 	},
 
-	async getAllPermissions() {
-		return permissionDb.getAllPermissions();
-	},
+	getAllPermissions: () => permissionDb.getAllPermissions(),
 };

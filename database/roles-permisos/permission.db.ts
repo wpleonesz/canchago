@@ -1,46 +1,45 @@
+import type { Prisma } from '@/generated/prisma/client';
+
 import { prisma } from '@/database/client';
 
 export const permissionDb = {
-	async getPermissions(page: number, pageSize: number) {
-		const skip = (page - 1) * pageSize;
+	async getPermissions(page: number, pageSize: number, search?: string, module?: string) {
+		const where: Prisma.PermissionWhereInput = {
+			...(module ? { module } : {}),
+			...(search
+				? {
+						OR: [
+							{ code: { contains: search, mode: 'insensitive' as const } },
+							{ description: { contains: search, mode: 'insensitive' as const } },
+						],
+					}
+				: {}),
+		};
 
 		const [permissions, total] = await Promise.all([
 			prisma.permission.findMany({
-				skip,
+				where,
+				skip: (page - 1) * pageSize,
 				take: pageSize,
-				orderBy: { createdAt: 'desc' },
+				orderBy: [{ module: 'asc' }, { action: 'asc' }, { code: 'asc' }],
 			}),
-			prisma.permission.count(),
+			prisma.permission.count({ where }),
 		]);
 
-		return {
-			permissions,
-			total,
-			page,
-			pageSize,
-		};
+		return { permissions, total, page, pageSize };
 	},
 
-	async getPermissionsByRole(roleId: string) {
-		const rolePermissions = await prisma.rolePermission.findMany({
-			where: { roleId },
-			include: { permission: true },
-		});
+	getPermissionsByRole: (roleId: string) =>
+		prisma.rolePermission
+			.findMany({
+				where: { roleId, granted: true },
+				select: { permission: true },
+				orderBy: { permission: { code: 'asc' } },
+			})
+			.then(rows => rows.map(row => row.permission)),
 
-		return rolePermissions.map(rp => rp.permission);
-	},
+	getPermissionsByIds: (permissionIds: string[]) =>
+		prisma.permission.findMany({ where: { id: { in: permissionIds } } }),
 
-	async getPermissionsByIds(permissionIds: string[]) {
-		return prisma.permission.findMany({
-			where: {
-				id: { in: permissionIds },
-			},
-		});
-	},
-
-	async getAllPermissions() {
-		return prisma.permission.findMany({
-			orderBy: { code: 'asc' },
-		});
-	},
+	getAllPermissions: () => prisma.permission.findMany({ orderBy: { code: 'asc' } }),
 };

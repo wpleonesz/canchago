@@ -10,16 +10,18 @@ import {
 	createOrganizationSchema,
 } from '@/validations/organizaciones-sedes';
 import { throwValidationError } from '@/lib/errors/throw-validation-error';
+import { AuthenticationError } from '@/errors';
 
 const handler = createRouter<NextApiRequest, NextApiResponse>();
 
 handler
 	.use(auth)
 	.get(access('organizaciones.read'), async (req, res): Promise<void> => {
+		if (!req.user) throw new AuthenticationError();
 		const parsed = organizationQuerySchema.safeParse(req.query);
 		throwValidationError(parsed);
 
-		const result = await organizacionService.getAll(parsed.data);
+		const result = await organizacionService.getAll(parsed.data, req.user);
 
 		res.status(200).json(result);
 	})

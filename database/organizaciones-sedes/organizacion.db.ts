@@ -29,18 +29,42 @@ const selectOrganizationFields = {
 	updatedAt: true,
 };
 
-export const getAll = async (filters: OrganizationQueryParams) => {
+export const getAll = async (
+	filters: OrganizationQueryParams,
+	actor: { userId: string; isAdministrator: boolean },
+) => {
 	const { skip, take, meta } = normalizePagination(filters);
 
 	const where: Prisma.OrganizationWhereInput = {
 		deletedAt: null,
+		...(!actor.isAdministrator
+			? {
+					OR: [
+						{
+							userRoles: {
+								some: { userId: actor.userId, role: { deletedAt: null } },
+							},
+						},
+						{
+							roles: {
+								some: {
+									deletedAt: null,
+									userRoles: { some: { userId: actor.userId } },
+								},
+							},
+						},
+					],
+				}
+			: {}),
 	};
 
 	if (filters.search) {
-		where.OR = [
-			{ name: { contains: filters.search, mode: 'insensitive' } },
-			{ email: { contains: filters.search, mode: 'insensitive' } },
-		];
+		where.AND = {
+			OR: [
+				{ name: { contains: filters.search, mode: 'insensitive' } },
+				{ email: { contains: filters.search, mode: 'insensitive' } },
+			],
+		};
 	}
 
 	const [organizations, total] = await Promise.all([

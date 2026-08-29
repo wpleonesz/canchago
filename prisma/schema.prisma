@@ -26,10 +26,11 @@ model Organization {
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt         DateTime? @map("deleted_at") @db.Timestamptz
 
-  venues        Venue[]
-  roles         Role[]
-  userRoles     UserRole[]
+  venues         Venue[]
+  roles          Role[]
+  userRoles      UserRole[]
   accessRequests OrganizationAccessRequest[]
+  auditLogs      AuditLog[]
 
   @@index([name])
   @@map("organizations")
@@ -65,12 +66,13 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  profile      UserProfile?
-  authAccounts AuthAccount[]
-  sessions     UserSession[]
-  userRoles    UserRole[]
+  profile                 UserProfile?
+  authAccounts            AuthAccount[]
+  sessions                UserSession[]
+  userRoles               UserRole[]
   requestedAccessRequests OrganizationAccessRequest[] @relation("AccessRequestRequester")
   reviewedAccessRequests  OrganizationAccessRequest[] @relation("AccessRequestReviewer")
+  auditLogs               AuditLog[]
 
   @@map("users")
 }
@@ -138,6 +140,7 @@ model Role {
   organizationId String?   @map("organization_id") @db.Uuid
   code           String    @db.VarChar(100)
   name           String    @db.VarChar(150)
+  normalizedName String    @map("normalized_name") @db.VarChar(150)
   description    String?   @db.Text
   isSystem       Boolean   @default(false) @map("is_system")
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
@@ -148,9 +151,33 @@ model Role {
   permissions  RolePermission[]
   userRoles    UserRole[]
 
-  @@unique([organizationId, name])
   @@index([organizationId])
   @@map("roles")
+}
+
+enum AuditAction {
+  ROLE_CREATED
+  ROLE_UPDATED
+}
+
+model AuditLog {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorUserId    String      @map("actor_user_id") @db.Uuid
+  organizationId String?     @map("organization_id") @db.Uuid
+  entityType     String      @map("entity_type") @db.VarChar(100)
+  entityId       String      @map("entity_id") @db.Uuid
+  action         AuditAction
+  changes        Json
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz
+
+  actor        User          @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([organizationId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 model Permission {
@@ -205,7 +232,7 @@ model OrganizationAccessRequest {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId   String    @map("organization_id") @db.Uuid
   userId           String    @map("user_id") @db.Uuid
-  status           String    @db.VarChar(20) @default("PENDING")
+  status           String    @default("PENDING") @db.VarChar(20)
   reviewedAt       DateTime? @map("reviewed_at") @db.Timestamptz
   reviewedByUserId String?   @map("reviewed_by_user_id") @db.Uuid
   rejectionReason  String?   @map("rejection_reason") @db.Text

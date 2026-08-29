@@ -4,8 +4,14 @@ import type {
 	OrganizationQueryParams,
 	UpdateOrganizationBody,
 } from '@/validations/organizaciones-sedes';
+import type { SessionUser } from '@/lib/session';
+import { isAdministrator } from '@/services/users/role-guard';
 
-export const getAll = async (filters: OrganizationQueryParams) => organizacionDb.getAll(filters);
+export const getAll = async (filters: OrganizationQueryParams, actingUser: SessionUser) =>
+	organizacionDb.getAll(filters, {
+		userId: actingUser.id,
+		isAdministrator: isAdministrator(actingUser),
+	});
 
 export const getById = async (organizationId: string) =>
 	organizacionDb.record(organizationId).getUnique();

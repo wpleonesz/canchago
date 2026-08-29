@@ -15,15 +15,12 @@ const PermissionDetailSchema = z.object({
 });
 
 const RolePermissionSchema = z.object({
-	roleId: z.string().uuid(),
-	permissionId: z.string().uuid(),
 	granted: z.boolean(),
 	permission: PermissionDetailSchema,
 });
 
 const RoleSchema = z.object({
 	id: z.string().uuid(),
-	organizationId: z.string().uuid(),
 	name: z.string(),
 	description: z.string().nullable(),
 	code: z.string(),
@@ -57,6 +54,7 @@ const UpdateRoleInputSchema = z.object({
 	name: z.string().min(1).max(150).optional(),
 	description: z.string().max(500).nullable().optional(),
 	permissionIds: z.array(z.string().uuid()).optional(),
+	expectedUpdatedAt: z.string().datetime(),
 });
 
 // Schemas para Permisos
@@ -92,6 +90,7 @@ const PermissionsPaginatedSchema = z.object({
 
 const UpdateRolePermissionsInputSchema = z.object({
 	permissionIds: z.array(z.string().uuid()),
+	expectedUpdatedAt: z.string().datetime(),
 });
 
 // Error schemas
@@ -144,15 +143,18 @@ const rolesListDescription = `Listar todos los roles de una organización con pa
 **Parámetros de query:**
 - \`page\` (número, default: 1) — página a mostrar
 - \`pageSize\` (número, default: 20, máx: 100) — roles por página
+- \`search\` — búsqueda por nombre, código o descripción
+- \`isSystem\` — filtra roles de sistema o personalizados
+- \`orderBy\` / \`order\` — ordenamiento mediante lista blanca
 
-**Requiere permiso:** \`roles.read\``;
+**Requiere permiso:** \`roles.read\` y alcance efectivo de la organización.`;
 
 const rolesCreateDescription = `Crear un nuevo rol en una organización.
 
-**Requiere permiso:** \`roles.manage\`
+**Requiere permiso:** \`roles.manage\`, alcance efectivo y permisos solicitados no superiores a los del actor.
 
 **Errores posibles:**
-- \`422\` — Validación fallida (nombre vacío, permissionIds inválidos)
+- \`400\` — Validación fallida o campos no permitidos
 - \`409\` — Nombre de rol duplicado en la organización`;
 
 const roleDetailDescription = `Obtener detalles completos de un rol incluyendo sus permisos.
@@ -162,16 +164,17 @@ const roleDetailDescription = `Obtener detalles completos de un rol incluyendo s
 **Errores posibles:**
 - \`404\` — Rol no encontrado`;
 
-const roleUpdateDescription = `Actualizar nombre, descripción y/o permisos de un rol.
+const roleUpdateDescription = `Actualizar nombre, descripción y/o permisos de un rol con concurrencia optimista.
 
 **Requiere permiso:** \`roles.manage\`
 
 **Errores posibles:**
 - \`404\` — Rol no encontrado
-- \`422\` — Validación fallida
-- \`409\` — Nombre de rol duplicado`;
+- \`400\` — Validación fallida o campos no permitidos
+- \`403\` — Rol de sistema o escalamiento de privilegios
+- \`409\` — Nombre duplicado o versión obsoleta`;
 
-const roleDeleteDescription = `Eliminar (soft delete) un rol. Los permisos asociados se removerán automáticamente.
+const roleDeleteDescription = `Eliminar (soft delete) un rol personalizado. Los roles de sistema están protegidos.
 
 **Requiere permiso:** \`roles.manage\`
 
@@ -190,14 +193,18 @@ const rolePermissionsUpdateDescription = `Reemplazar completamente el conjunto d
 **Requiere permiso:** \`roles.manage\`
 
 **Errores posibles:**
+- \`400\` — permissionIds inválidos o payload no permitido
+- \`403\` — Rol de sistema o escalamiento de privilegios
 - \`404\` — Rol no encontrado
-- \`422\` — permissionIds inválidos`;
+- \`409\` — Versión obsoleta`;
 
 const permissionsListDescription = `Listar todos los permisos disponibles en el sistema con paginación.
 
 **Parámetros de query:**
 - \`page\` (número, default: 1)
 - \`pageSize\` (número, default: 20, máx: 100)
+- \`search\` — búsqueda por código, módulo, acción o descripción
+- \`module\` — filtro exacto por módulo
 
 **Requiere permiso:** \`permisos.read\``;
 
@@ -247,14 +254,6 @@ const errorResponses = {
 			},
 		},
 	},
-	422: {
-		description: 'Validación fallida',
-		content: {
-			'application/json': {
-				schema: ValidationErrorSchema,
-			},
-		},
-	},
 };
 
 // Registrar endpoints
@@ -280,6 +279,22 @@ registry.registerPath({
 			name: 'pageSize',
 			in: 'query',
 			schema: { type: 'integer', default: 20, maximum: 100 },
+		},
+		{ name: 'search', in: 'query', schema: { type: 'string', maxLength: 150 } },
+		{ name: 'isSystem', in: 'query', schema: { type: 'boolean' } },
+		{
+			name: 'orderBy',
+			in: 'query',
+			schema: {
+				type: 'string',
+				enum: ['name', 'createdAt', 'updatedAt'],
+				default: 'createdAt',
+			},
+		},
+		{
+			name: 'order',
+			in: 'query',
+			schema: { type: 'string', enum: ['asc', 'desc'], default: 'desc' },
 		},
 	],
 	responses: {
@@ -400,6 +415,7 @@ registry.registerPath({
 					name: 'Administrador de Sede Actualizado',
 					description: 'Descripción actualizada del rol',
 					permissionIds: ['123e4567-e89b-12d3-a456-426614174001'],
+					expectedUpdatedAt: '2026-08-29T12:00:00.000Z',
 				},
 			},
 		},
@@ -518,6 +534,7 @@ registry.registerPath({
 						'123e4567-e89b-12d3-a456-426614174001',
 						'123e4567-e89b-12d3-a456-426614174002',
 					],
+					expectedUpdatedAt: '2026-08-29T12:00:00.000Z',
 				},
 			},
 		},
@@ -552,6 +569,8 @@ registry.registerPath({
 			in: 'query',
 			schema: { type: 'integer', default: 20, maximum: 100 },
 		},
+		{ name: 'search', in: 'query', schema: { type: 'string', maxLength: 200 } },
+		{ name: 'module', in: 'query', schema: { type: 'string', maxLength: 100 } },
 	],
 	responses: {
 		200: {

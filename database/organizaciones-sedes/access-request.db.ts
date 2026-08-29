@@ -18,6 +18,7 @@ const isPrismaUniqueConstraintError = (
 // todavía — se crea aquí mismo, en la misma transacción de aprobación, la primera vez.
 const GESTOR_ROLE_NAME = 'Gestor de Cancha';
 const GESTOR_ROLE_CODE = 'gestor-de-cancha';
+const GESTOR_ROLE_NORMALIZED_NAME = 'gestor de cancha';
 
 const selectAccessRequestFields = {
 	id: true,
@@ -179,7 +180,11 @@ export const approveAccessRequest = async (requestId: string, reviewerUserId: st
 		});
 
 		let gestorRole = await transaction.role.findFirst({
-			where: { organizationId: request.organizationId, name: GESTOR_ROLE_NAME, deletedAt: null },
+			where: {
+				organizationId: request.organizationId,
+				normalizedName: GESTOR_ROLE_NORMALIZED_NAME,
+				deletedAt: null,
+			},
 		});
 
 		if (!gestorRole) {
@@ -187,6 +192,7 @@ export const approveAccessRequest = async (requestId: string, reviewerUserId: st
 				data: {
 					organizationId: request.organizationId,
 					name: GESTOR_ROLE_NAME,
+					normalizedName: GESTOR_ROLE_NORMALIZED_NAME,
 					code: GESTOR_ROLE_CODE,
 					isSystem: true,
 				},

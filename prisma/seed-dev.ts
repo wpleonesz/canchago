@@ -35,6 +35,8 @@ const ROLES: RoleSeed[] = [
 ];
 
 const toCode = (name: string): string => name.toLowerCase().replace(/\s+/gu, '-');
+const normalizeName = (name: string): string =>
+	name.trim().replace(/\s+/gu, ' ').toLocaleLowerCase();
 
 const resolveOrganization = async () => {
 	const preferred = await prisma.organization.findFirst({
@@ -72,7 +74,7 @@ const main = async (): Promise<void> => {
 		// NO protege a los roles globales, porque PostgreSQL trata cada NULL como distinto
 		// y permitiria insertar "Futbolista" global tantas veces como se ejecute la semilla.
 		const existing = await prisma.role.findFirst({
-			where: { organizationId, name: role.name, deletedAt: null },
+			where: { organizationId, normalizedName: normalizeName(role.name), deletedAt: null },
 		});
 
 		if (existing) {
@@ -84,6 +86,7 @@ const main = async (): Promise<void> => {
 			data: {
 				organizationId,
 				name: role.name,
+				normalizedName: normalizeName(role.name),
 				code: toCode(role.name),
 				description: role.description,
 				isSystem: true,
