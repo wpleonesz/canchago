@@ -13,12 +13,14 @@
 	"folders": [
 		{
 			"name": "canchago — backend (Next.js, fuente de verdad)",
-			"path": "."
+			"path": ".",
 		},
 		{
 			"name": "canchago-ionic — frontend (Ionic/React, cliente móvil)",
-			"path": "../canchago-ionic"
-		}
+			"path": "../canchago-ionic",
+		},
 	],
-	"settings": {}
+	"settings": {
+		"java.configuration.updateBuildConfiguration": "interactive",
+	},
 }
