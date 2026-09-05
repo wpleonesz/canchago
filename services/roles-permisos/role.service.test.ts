@@ -148,4 +148,57 @@ describe('roleService mutations', () => {
 		expect(mocks.replacePermissions).not.toHaveBeenCalled();
 		expect(mocks.writeAudit).not.toHaveBeenCalled();
 	});
+
+	it('reemplaza permisos y audita exactamente las altas y bajas', async () => {
+		const nextPermissionId = '123e4567-e89b-42d3-a456-426614174005';
+		mocks.findPermissions.mockResolvedValue([{ id: nextPermissionId, code: 'users.read' }]);
+		mocks.getDetail.mockResolvedValue({ id: ROLE_ID, permissions: [] });
+
+		await roleService.updateRole(
+			ROLE_ID,
+			ORGANIZATION_ID,
+			{ permissionIds: [nextPermissionId], expectedUpdatedAt: UPDATED_AT },
+			buildUser({ administrator: true }),
+		);
+
+		expect(mocks.replacePermissions).toHaveBeenCalledWith(ROLE_ID, [nextPermissionId]);
+		expect(mocks.writeAudit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				action: 'ROLE_UPDATED',
+				changes: {
+					permissionsAdded: ['users.read'],
+					permissionsRemoved: ['roles.read'],
+				},
+			}),
+		);
+	});
+
+	it('rechaza permisos inexistentes antes de tocar el agregado', async () => {
+		mocks.findPermissions.mockResolvedValue([]);
+
+		await expect(
+			roleService.updateRole(
+				ROLE_ID,
+				ORGANIZATION_ID,
+				{ permissionIds: [PERMISSION_ID], expectedUpdatedAt: UPDATED_AT },
+				buildUser({ administrator: true }),
+			),
+		).rejects.toMatchObject({ statusCode: 400, code: 'VALIDATION_ERROR' });
+		expect(mocks.updateRole).not.toHaveBeenCalled();
+		expect(mocks.replacePermissions).not.toHaveBeenCalled();
+	});
+
+	it('impide administrar un rol que ya contiene capacidades superiores a las del actor', async () => {
+		mocks.findPermissions.mockResolvedValue([{ id: PERMISSION_ID, code: 'roles.read' }]);
+
+		await expect(
+			roleService.updateRole(
+				ROLE_ID,
+				ORGANIZATION_ID,
+				{ permissionIds: [PERMISSION_ID], expectedUpdatedAt: UPDATED_AT },
+				buildUser({ permissions: ['users.read'] }),
+			),
+		).rejects.toMatchObject({ statusCode: 403, code: 'FORBIDDEN' });
+		expect(mocks.updateRole).not.toHaveBeenCalled();
+	});
 });

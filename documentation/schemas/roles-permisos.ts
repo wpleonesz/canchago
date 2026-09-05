@@ -88,10 +88,12 @@ const PermissionsPaginatedSchema = z.object({
 	}),
 });
 
-const UpdateRolePermissionsInputSchema = z.object({
-	permissionIds: z.array(z.string().uuid()),
-	expectedUpdatedAt: z.string().datetime(),
-});
+const UpdateRolePermissionsInputSchema = z
+	.object({
+		permissionIds: z.array(z.string().uuid()).max(500),
+		expectedUpdatedAt: z.string().datetime(),
+	})
+	.strict();
 
 // Error schemas
 const ValidationErrorSchema = z.object({
