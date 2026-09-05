@@ -39,7 +39,8 @@
       "Bash(echo \"exit:$?\")",
       "Bash(mkdir -p \"/Users/pleones11/Documents/UEA/PROYECTOS/canchago/spec/features/021-integridad-permisos-menus\" && ls \"/Users/pleones11/Documents/UEA/PROYECTOS/canchago/spec/features/\")",
       "Bash(find /Users/pleones11/Documents/UEA/PROYECTOS/canchago-ionic/src -ipath *roles* -type f)",
-      "Bash(find /Users/pleones11/Documents/UEA/PROYECTOS/canchago-ionic/src -iname *ListPage.test.tsx)"
+      "Bash(find /Users/pleones11/Documents/UEA/PROYECTOS/canchago-ionic/src -iname *ListPage.test.tsx)",
+      "Bash(find /Users/pleones11/Documents/UEA/PROYECTOS/canchago/validations/users -iname *role*)"
     ],
     "additionalDirectories": [
       "/Users/pleones11/Documents/UEA/PROYECTOS/canchago/spec/features"
