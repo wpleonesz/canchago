@@ -1,6 +1,6 @@
 # 021 · Integridad de Permisos y Menús
 
-**Estado:** propuesta
+**Estado:** implementada, con cierre de calidad pendiente (ver `tasks.md`: bloqueada por el mismo `yarn build` preexistente de las features 018/019/020, y con huecos de cobertura real-DB documentados explícitamente)
 
 ## Qué hace
 

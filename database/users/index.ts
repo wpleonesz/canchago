@@ -93,7 +93,12 @@ const loadUserWithAccess = async (userId: string) =>
 				include: {
 					role: {
 						include: {
+							// `granted: true` iguala el filtro que ya aplican `role.db.ts` y
+							// `permission.db.ts` sobre esta misma relación: sin él, una fila
+							// `RolePermission.granted: false` (revocación parcial) seguiría
+							// entrando a la sesión efectiva del usuario.
 							permissions: {
+								where: { granted: true },
 								include: {
 									permission: true,
 								},
