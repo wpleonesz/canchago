@@ -35,7 +35,12 @@
       "Bash(npx tsx --env-file=.env -e ' *)",
       "Bash(npx vitest *)",
       "Bash(curl -s -o /dev/null http://localhost:3000/api/auth/session)",
-      "Bash(bash /private/tmp/claude-501/-Users-pleones11-Documents-UEA-PROYECTOS-canchago/2c10bb3c-afd9-4a25-9bc5-b7fc7b1bcd25/scratchpad/flow2.sh)"
+      "Bash(bash /private/tmp/claude-501/-Users-pleones11-Documents-UEA-PROYECTOS-canchago/2c10bb3c-afd9-4a25-9bc5-b7fc7b1bcd25/scratchpad/flow2.sh)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(mkdir -p \"/Users/pleones11/Documents/UEA/PROYECTOS/canchago/spec/features/021-integridad-permisos-menus\" && ls \"/Users/pleones11/Documents/UEA/PROYECTOS/canchago/spec/features/\")"
+    ],
+    "additionalDirectories": [
+      "/Users/pleones11/Documents/UEA/PROYECTOS/canchago/spec/features"
     ]
   },
   "hooks": {
