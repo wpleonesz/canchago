@@ -14,7 +14,7 @@ export const createUserSchema = z.object({
 		.string()
 		.min(1, VALIDATION_MESSAGES.REQUIRED)
 		.max(100, VALIDATION_MESSAGES.MAX_LENGTH(100)),
-	organizationId: z.string().uuid(VALIDATION_MESSAGES.UUID),
+	organizationId: z.string().uuid(VALIDATION_MESSAGES.UUID).optional(),
 	roleIds: z.array(z.string().uuid(VALIDATION_MESSAGES.UUID)).optional(),
 });
 

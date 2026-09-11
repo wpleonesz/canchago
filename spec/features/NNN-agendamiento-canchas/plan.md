@@ -119,6 +119,7 @@ La fuente de verdad de disponibilidad y autorización será siempre backend+base
 - **Estado ocupado preferentemente derivado** — evita sincronizar dos fuentes de verdad; la decisión final dependerá del modelo de restricción elegido.
 - **Integridad en PostgreSQL** — una comprobación previa de aplicación no elimina carreras. Se preferirá exclusión por rango/recurso o un mecanismo transaccional equivalente probado.
 - **Idempotencia explícita** — deshabilitar el botón no cubre reintentos de red o retransmisión.
+- **Sin cuota por futbolista** — la única limitación es la disponibilidad e integridad de cada franja; no se añade contador diario/semanal.
 - **Cancelación lógica** — conserva trazabilidad y vuelve a habilitar la franja solo dentro de la misma transacción.
 - **Permisos más scope y ownership** — RBAC define capacidad; las relaciones reales delimitan el objeto concreto.
 - **Backend antes que móvil** — Ionic no consumirá contratos inventados.
@@ -134,4 +135,3 @@ La fuente de verdad de disponibilidad y autorización será siempre backend+base
 - **Retry incierto** — idempotencia persistente y estado “resultado desconocido” en UI ante corte de red.
 - **N+1/listados grandes** — selects/includes agregados controlados y paginación donde crezca el volumen.
 - **Deuda preexistente de build/tests** — registrar línea base antes de implementar; no atribuirla a la feature ni declarar cierre con regresiones propias.
-

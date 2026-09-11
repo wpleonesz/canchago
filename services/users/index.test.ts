@@ -73,7 +73,25 @@ describe('user service role assignment', () => {
 			roles: [],
 		});
 		expect(createWithRoles).toHaveBeenCalledOnce();
-		expect(createWithRoles).toHaveBeenCalledWith(BODY);
+		expect(createWithRoles).toHaveBeenCalledWith(BODY, [
+			{ id: ROLE_ID, organizationId: ORGANIZATION_ID, isSystem: false },
+		]);
+	});
+
+	it('crea un Futbolista global sin organización', async () => {
+		const body = { ...BODY, organizationId: undefined };
+		getAssignableRoles.mockResolvedValue([{ id: ROLE_ID, organizationId: null, isSystem: true }]);
+		createWithRoles.mockResolvedValue(CREATED_USER);
+
+		await expect(
+			create(body, {
+				...ACTING_USER,
+				roles: [{ id: 'admin', code: 'administrador', name: 'Administrador' }],
+			}),
+		).resolves.toBeDefined();
+		expect(createWithRoles).toHaveBeenCalledWith(body, [
+			{ id: ROLE_ID, organizationId: null, isSystem: true },
+		]);
 	});
 
 	it('rejects unknown roles with 422 before creating the user', async () => {

@@ -522,7 +522,10 @@ export const create = async (data: CreateUserBody) => {
 	}
 };
 
-export const createWithRoles = async (data: CreateUserBody) => {
+export const createWithRoles = async (
+	data: CreateUserBody,
+	roles: Array<{ id: string; organizationId: string | null }> = [],
+) => {
 	try {
 		return await prisma.$transaction(async transaction =>
 			transaction.user.create({
@@ -536,12 +539,12 @@ export const createWithRoles = async (data: CreateUserBody) => {
 							lastName: data.lastName,
 						},
 					},
-					...(data.roleIds && data.roleIds.length > 0
+					...(roles.length > 0
 						? {
 								userRoles: {
-									create: data.roleIds.map(roleId => ({
-										roleId,
-										organizationId: data.organizationId,
+									create: roles.map(role => ({
+										roleId: role.id,
+										organizationId: role.organizationId,
 									})),
 								},
 							}

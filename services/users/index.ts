@@ -29,6 +29,10 @@ const validateAssignableRoles = async (
 		throw new BusinessRuleError('Uno o más roles no existen o ya no están activos.');
 	}
 
+	if (roles.some(role => role.organizationId !== null && !organizationId)) {
+		throw new BusinessRuleError('La organización es obligatoria para los roles de organización.');
+	}
+
 	if (
 		organizationId &&
 		roles.some(role => role.organizationId !== null && role.organizationId !== organizationId)
@@ -56,12 +60,13 @@ export const getAll = async (query: UserQueryParams) => {
 };
 
 export const create = async (body: CreateUserBody, actingUser: SessionUser) => {
+	let roles: AssignableRole[] = [];
 	if (body.roleIds) {
 		await assertCanAssignRoles(actingUser, body.roleIds);
-		await validateAssignableRoles(body.roleIds, body.organizationId);
+		roles = await validateAssignableRoles(body.roleIds, body.organizationId);
 	}
 
-	const userWithRoles = await userData.createWithRoles(body);
+	const userWithRoles = await userData.createWithRoles(body, roles);
 
 	return {
 		id: userWithRoles.id,

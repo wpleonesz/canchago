@@ -208,6 +208,29 @@ export const approveAccessRequest = async (requestId: string, reviewerUserId: st
 			});
 		}
 
+		const gestorPermissions = await transaction.permission.findMany({
+			where: {
+				code: {
+					in: [
+						'resources.read',
+						'resources.manage',
+						'availability.read',
+						'availability.manage',
+						'bookings.read.own',
+						'organizaciones.read',
+					],
+				},
+			},
+			select: { id: true },
+		});
+		for (const permission of gestorPermissions) {
+			await transaction.rolePermission.upsert({
+				where: { roleId_permissionId: { roleId: gestorRole.id, permissionId: permission.id } },
+				create: { roleId: gestorRole.id, permissionId: permission.id },
+				update: { granted: true },
+			});
+		}
+
 		await transaction.userRole.create({
 			data: {
 				userId: request.userId,

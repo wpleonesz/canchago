@@ -50,6 +50,7 @@ model Venue {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userRoles    UserRole[]
+  resources    Resource[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -66,13 +67,15 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  profile                 UserProfile?
-  authAccounts            AuthAccount[]
-  sessions                UserSession[]
-  userRoles               UserRole[]
-  requestedAccessRequests OrganizationAccessRequest[] @relation("AccessRequestRequester")
-  reviewedAccessRequests  OrganizationAccessRequest[] @relation("AccessRequestReviewer")
-  auditLogs               AuditLog[]
+  profile                  UserProfile?
+  authAccounts             AuthAccount[]
+  sessions                 UserSession[]
+  userRoles                UserRole[]
+  bookings                 Booking[]
+  availabilitySlotsCreated AvailabilitySlot[]
+  requestedAccessRequests  OrganizationAccessRequest[] @relation("AccessRequestRequester")
+  reviewedAccessRequests   OrganizationAccessRequest[] @relation("AccessRequestReviewer")
+  auditLogs                AuditLog[]
 
   @@map("users")
 }
@@ -162,6 +165,88 @@ enum AuditAction {
   ORGANIZATION_UPDATED
   VENUE_CREATED
   VENUE_UPDATED
+  RESOURCE_CREATED
+  RESOURCE_UPDATED
+  AVAILABILITY_CREATED
+  AVAILABILITY_UPDATED
+  BOOKING_CREATED
+  BOOKING_CANCELLED
+}
+
+enum ResourceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AvailabilityStatus {
+  DRAFT
+  PUBLISHED
+  WITHDRAWN
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+model Resource {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venueId     String         @map("venue_id") @db.Uuid
+  name        String         @db.VarChar(150)
+  description String?        @db.Text
+  status      ResourceStatus @default(ACTIVE)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt   DateTime?      @map("deleted_at") @db.Timestamptz
+
+  venue             Venue              @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  availabilitySlots AvailabilitySlot[]
+  bookings          Booking[]
+
+  @@unique([venueId, name])
+  @@index([venueId, status])
+  @@map("resources")
+}
+
+model AvailabilitySlot {
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resourceId      String             @map("resource_id") @db.Uuid
+  startsAt        DateTime           @map("starts_at") @db.Timestamptz
+  endsAt          DateTime           @map("ends_at") @db.Timestamptz
+  status          AvailabilityStatus @default(DRAFT)
+  createdByUserId String             @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  resource  Resource  @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  createdBy User      @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  bookings  Booking[]
+
+  @@index([resourceId, startsAt, endsAt])
+  @@index([status, startsAt])
+  @@map("availability_slots")
+}
+
+model Booking {
+  id                 String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String        @map("user_id") @db.Uuid
+  resourceId         String        @map("resource_id") @db.Uuid
+  availabilitySlotId String        @map("availability_slot_id") @db.Uuid
+  status             BookingStatus @default(CONFIRMED)
+  idempotencyKey     String        @map("idempotency_key") @db.VarChar(100)
+  cancelledAt        DateTime?     @map("cancelled_at") @db.Timestamptz
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  resource         Resource         @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  availabilitySlot AvailabilitySlot @relation(fields: [availabilitySlotId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, idempotencyKey])
+  @@index([availabilitySlotId, status])
+  @@index([userId, status, createdAt])
+  @@index([resourceId, status])
+  @@map("bookings")
 }
 
 model AuditLog {

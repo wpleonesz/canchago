@@ -104,6 +104,51 @@ const main = async (): Promise<void> => {
 	console.log('\n✅ Roles base listos.');
 
 	await grantAllPermissionsToAdmin();
+	await grantBookingPermissions();
+};
+
+const grantBookingPermissions = async (): Promise<void> => {
+	const grants = new Map([
+		[
+			'futbolista',
+			[
+				'resources.read',
+				'availability.read',
+				'bookings.create',
+				'bookings.read.own',
+				'bookings.cancel.own',
+			],
+		],
+		[
+			'gestor-de-cancha',
+			[
+				'resources.read',
+				'resources.manage',
+				'availability.read',
+				'availability.manage',
+				'bookings.read.own',
+				'organizaciones.read',
+			],
+		],
+	]);
+	for (const [roleCode, codes] of grants) {
+		const roles = await prisma.role.findMany({
+			where: { code: roleCode, deletedAt: null },
+			select: { id: true },
+		});
+		const permissions = await prisma.permission.findMany({
+			where: { code: { in: codes } },
+			select: { id: true },
+		});
+		for (const role of roles)
+			for (const permission of permissions) {
+				await prisma.rolePermission.upsert({
+					where: { roleId_permissionId: { roleId: role.id, permissionId: permission.id } },
+					create: { roleId: role.id, permissionId: permission.id },
+					update: { granted: true },
+				});
+			}
+	}
 };
 
 /**

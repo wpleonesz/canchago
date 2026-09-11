@@ -13,10 +13,17 @@ describe('extractRequiredPermissionCodes (feature 021)', () => {
 		expect(unrecognizedCalls).toEqual([]);
 		expect([...requiredCodes].sort()).toEqual(
 			[
+				'availability.manage',
+				'availability.read',
+				'bookings.cancel.own',
+				'bookings.create',
+				'bookings.read.own',
 				'menus.read',
 				'organizaciones.manage',
 				'organizaciones.read',
 				'permisos.read',
+				'resources.manage',
+				'resources.read',
 				'roles.manage',
 				'roles.read',
 				'users.create',

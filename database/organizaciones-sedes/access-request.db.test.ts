@@ -22,6 +22,8 @@ const updateManyVenue = vi.fn();
 const findFirstRole = vi.fn();
 const createRole = vi.fn();
 const createUserRole = vi.fn();
+const findManyPermission = vi.fn();
+const upsertRolePermission = vi.fn();
 
 const tx = {
 	organizationAccessRequest: {
@@ -32,6 +34,8 @@ const tx = {
 	venue: { updateMany: updateManyVenue },
 	role: { findFirst: findFirstRole, create: createRole },
 	userRole: { create: createUserRole },
+	permission: { findMany: findManyPermission },
+	rolePermission: { upsert: upsertRolePermission },
 };
 
 vi.mock('@/database/client', () => ({
@@ -53,6 +57,9 @@ describe('approveAccessRequest', () => {
 		findFirstRole.mockReset();
 		createRole.mockReset();
 		createUserRole.mockReset();
+		findManyPermission.mockReset();
+		upsertRolePermission.mockReset();
+		findManyPermission.mockResolvedValue([]);
 	});
 
 	it('rechaza con conflicto si la solicitud no existe', async () => {

@@ -1,0 +1,107 @@
+import * as repository from '@/database/reservas';
+import { AuthorizationError, ConflictError, NotFoundError } from '@/errors';
+import type { SessionUser } from '@/lib/session';
+import { isAdministrator } from '@/services/users/role-guard';
+import type {
+	AvailabilityQuery,
+	CreateBookingBody,
+	CreateResourceBody,
+	CreateSlotBody,
+	UpdateSlotBody,
+} from '@/validations/reservas';
+
+export const listResources = repository.listResources;
+export const getResource = async (id: string) => {
+	const resource = await repository.getResource(id);
+	if (!resource) throw new NotFoundError('La cancha solicitada no está disponible.');
+	return resource;
+};
+export const createResource = async (
+	organizationId: string,
+	venueId: string,
+	body: CreateResourceBody,
+	user: SessionUser,
+) => {
+	if (
+		!isAdministrator(user) &&
+		!(await repository.actorCanManageVenue(user.id, organizationId, venueId))
+	)
+		throw new AuthorizationError();
+	if (!(await repository.getVenue(organizationId, venueId)))
+		throw new NotFoundError('La sede solicitada no está disponible.');
+	return repository.createResource(venueId, body);
+};
+export const listAvailability = async (
+	resourceId: string,
+	query: AvailabilityQuery,
+	user: SessionUser,
+) => {
+	await getResource(resourceId);
+	if (
+		query.includeAll &&
+		!isAdministrator(user) &&
+		!(await repository.actorCanManageResource(user.id, resourceId))
+	)
+		throw new AuthorizationError();
+	const result = await repository.listAvailability(resourceId, query);
+	return {
+		...result,
+		data: result.data.map(slot => ({
+			...slot,
+			isBooked: slot.bookings.length > 0,
+			bookings: undefined,
+		})),
+	};
+};
+export const createSlot = async (resourceId: string, body: CreateSlotBody, user: SessionUser) => {
+	if (!isAdministrator(user) && !(await repository.actorCanManageResource(user.id, resourceId)))
+		throw new AuthorizationError();
+	if (new Date(body.startsAt) <= new Date())
+		throw new ConflictError('La franja debe comenzar en el futuro.');
+	const slot = await repository.createSlot(resourceId, user.id, body);
+	if (!slot) throw new ConflictError('La franja se solapa con otra disponibilidad de la cancha.');
+	return slot;
+};
+export const updateSlot = async (
+	resourceId: string,
+	slotId: string,
+	body: UpdateSlotBody,
+	user: SessionUser,
+) => {
+	if (!isAdministrator(user) && !(await repository.actorCanManageResource(user.id, resourceId)))
+		throw new AuthorizationError();
+	const result = await repository.updateSlot(resourceId, slotId, body);
+	if (result.kind === 'not-found') throw new NotFoundError('La franja solicitada no existe.');
+	if (result.kind === 'stale')
+		throw new ConflictError('La franja cambió; actualiza antes de reintentar.');
+	if (result.kind === 'booked')
+		throw new ConflictError('Una franja reservada no puede moverse ni retirarse.');
+	if (result.kind === 'overlap')
+		throw new ConflictError('La franja se solapa con otra disponibilidad de la cancha.');
+	if (result.kind === 'past') throw new ConflictError('La franja debe comenzar en el futuro.');
+	if (result.kind === 'invalid') throw new ConflictError('El intervalo de la franja no es válido.');
+	return result.slot;
+};
+export const createBooking = async (body: CreateBookingBody, user: SessionUser) => {
+	try {
+		const result = await repository.createBooking(
+			user.id,
+			body.availabilitySlotId,
+			body.idempotencyKey,
+		);
+		if (!result) throw new ConflictError('La franja ya no está disponible.');
+		if (result.idempotencyConflict)
+			throw new ConflictError('La clave de idempotencia ya fue usada para otra reserva.');
+		return result;
+	} catch (error) {
+		if (error instanceof ConflictError) throw error;
+		throw new ConflictError('La franja ya no está disponible.');
+	}
+};
+export const listOwnBookings = repository.listOwnBookings;
+export const cancelOwnBooking = async (bookingId: string, user: SessionUser) => {
+	if (!(await repository.getOwnBooking(user.id, bookingId)))
+		throw new NotFoundError('La reserva solicitada no existe.');
+	const result = await repository.cancelOwnBooking(user.id, bookingId);
+	if (result.count === 0) throw new ConflictError('La reserva ya no puede cancelarse.');
+};

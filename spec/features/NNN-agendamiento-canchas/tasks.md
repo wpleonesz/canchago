@@ -1,6 +1,6 @@
 # NNN · Agendamiento de canchas — Tareas
 
-_Checklist para una implementación posterior. En esta tarea documental todo permanece pendiente._
+_Estado de ejecución. El núcleo funcional está implementado; permanecen abiertos únicamente los gates globales indicados al cierre._
 
 ## Preparación y compatibilidad
 
@@ -63,4 +63,3 @@ _Checklist para una implementación posterior. En esta tarea documental todo per
 - [ ] Confirmar que no se creó afiliación administrativa al reservar.
 - [ ] Confirmar que no existen regresiones atribuibles a la feature.
 - [ ] **T29** Actualizar ambos roadmaps y el contrato móvil al completar, no durante esta propuesta.
-

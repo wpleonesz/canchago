@@ -1,6 +1,6 @@
 # NNN · Agendamiento de canchas
 
-**Estado:** propuesta
+**Estado:** implementada, en cierre técnico
 
 ## Qué hace
 
@@ -99,6 +99,8 @@ Estados mínimos conceptuales: **confirmada** y **cancelada**. No se incorpora p
 ### Consulta y reserva del Futbolista
 
 - El Futbolista consulta recursos habilitados de distintas organizaciones sin pertenecer a ellas.
+- Puede reservar de lunes a domingo y tantas franjas distintas como considere; no existe un cupo diario, semanal ni total por usuario.
+- La ausencia de cupo personal nunca permite ocupar una franja no disponible ni crear reservas solapadas para el mismo recurso.
 - Solo ve como seleccionables franjas publicadas, futuras, no retiradas y sin reserva bloqueante.
 - La disponibilidad mostrada no garantiza la reserva: el backend revalida todos los invariantes al confirmar.
 - La operación de confirmación es atómica y la base de datos arbitra la concurrencia.
@@ -180,6 +182,7 @@ Se reutilizarán `apiClient`, `errorMapper`, TanStack Query, Zod/React Hook Form
 - [ ] El Futbolista consulta canchas habilitadas de diferentes organizaciones y sus horarios disponibles.
 - [ ] Solo las franjas publicadas, futuras, vigentes y libres aparecen como seleccionables.
 - [ ] El Futbolista confirma una reserva válida para sí mismo.
+- [ ] El Futbolista puede reservar cualquier día de lunes a domingo y múltiples veces, siempre que cada franja continúe disponible.
 - [ ] La reserva relaciona futbolista, recurso y franja/intervalo sin crear membresía administrativa.
 - [ ] Dos confirmaciones concurrentes no pueden ocupar la misma franja; solo una termina creada.
 - [ ] Un doble toque, retry o retransmisión con la misma clave no crea una segunda reserva.
@@ -225,4 +228,3 @@ Se reutilizarán `apiClient`, `errorMapper`, TanStack Query, Zod/React Hook Form
 - Cambiar el proveedor o flujo de autenticación existente.
 - Refactorizaciones globales de navegación/UI o de módulos ajenos.
 - Implementar cualquier código, componente o migración como parte de esta tarea documental.
-

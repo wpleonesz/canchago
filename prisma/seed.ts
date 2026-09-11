@@ -23,6 +23,13 @@ const PERMISSIONS = [
 	{ module: 'roles', action: 'manage', description: 'Gestionar roles' },
 	{ module: 'permisos', action: 'read', description: 'Leer permisos' },
 	{ module: 'menus', action: 'read', description: 'Leer menús' },
+	{ module: 'resources', action: 'read', description: 'Consultar canchas habilitadas' },
+	{ module: 'resources', action: 'manage', description: 'Administrar canchas propias' },
+	{ module: 'availability', action: 'read', description: 'Consultar horarios disponibles' },
+	{ module: 'availability', action: 'manage', description: 'Administrar horarios propios' },
+	{ module: 'bookings', action: 'create', description: 'Crear reservas propias' },
+	{ module: 'bookings', action: 'read.own', description: 'Consultar reservas propias' },
+	{ module: 'bookings', action: 'cancel.own', description: 'Cancelar reservas propias' },
 ];
 
 /**

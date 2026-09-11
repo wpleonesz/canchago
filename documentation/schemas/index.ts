@@ -8,3 +8,4 @@ export * from './users';
 export * from './organizaciones-sedes';
 export * from './roles-permisos';
 export * from './menus';
+export * from './reservas';
