@@ -43,6 +43,19 @@ export const updateResourceSchema = resourceBaseShape
 		path: ['longitude'],
 	});
 
+const weekdayDiscountSchema = z.object({
+	weekday: z.coerce.number().int().min(0).max(6),
+	discountPercent: z.coerce.number().gt(0).max(100),
+});
+
+export const updateWeekdayDiscountsSchema = z
+	.object({ discounts: z.array(weekdayDiscountSchema).max(7) })
+	.refine(
+		value =>
+			new Set(value.discounts.map(discount => discount.weekday)).size === value.discounts.length,
+		{ message: 'No puede repetirse el mismo día de la semana.', path: ['discounts'] },
+	);
+
 export const createSlotSchema = z
 	.object({ startsAt: instant, endsAt: instant, publish: z.boolean().optional() })
 	.refine(value => new Date(value.startsAt) < new Date(value.endsAt), {
@@ -111,6 +124,7 @@ export const managedBookingsQuerySchema = paginationSchema.extend({
 
 export type CreateResourceBody = z.infer<typeof createResourceSchema>;
 export type UpdateResourceBody = z.infer<typeof updateResourceSchema>;
+export type UpdateWeekdayDiscountsBody = z.infer<typeof updateWeekdayDiscountsSchema>;
 export type ManagedBookingsQuery = z.infer<typeof managedBookingsQuerySchema>;
 export type CreateSlotBody = z.infer<typeof createSlotSchema>;
 export type CreateMonthlyScheduleBody = z.infer<typeof createMonthlyScheduleSchema>;

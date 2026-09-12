@@ -5,6 +5,9 @@ const mocks = vi.hoisted(() => ({
 	count: vi.fn(),
 	bookingFindMany: vi.fn(),
 	bookingCount: vi.fn(),
+	weekdayDiscountDeleteMany: vi.fn(),
+	weekdayDiscountCreateMany: vi.fn(),
+	weekdayDiscountFindMany: vi.fn(),
 }));
 
 vi.mock('@/database/client', () => ({
@@ -17,10 +20,30 @@ vi.mock('@/database/client', () => ({
 			findMany: mocks.bookingFindMany,
 			count: mocks.bookingCount,
 		},
+		resourceWeekdayDiscount: {
+			deleteMany: mocks.weekdayDiscountDeleteMany,
+			createMany: mocks.weekdayDiscountCreateMany,
+			findMany: mocks.weekdayDiscountFindMany,
+		},
+		$transaction: (operation: (transaction: unknown) => Promise<unknown>) =>
+			operation({
+				resourceWeekdayDiscount: {
+					deleteMany: mocks.weekdayDiscountDeleteMany,
+					createMany: mocks.weekdayDiscountCreateMany,
+					findMany: mocks.weekdayDiscountFindMany,
+				},
+			}),
 	},
 }));
 
-import { listOwnBookings, listResources } from './index';
+import { Prisma } from '@/generated/prisma/client';
+
+import {
+	applyWeekdayDiscount,
+	listOwnBookings,
+	listResources,
+	replaceWeekdayDiscounts,
+} from './index';
 
 describe('listResources — visibilidad por status (feature 023)', () => {
 	beforeEach(() => {
@@ -73,5 +96,64 @@ describe('listOwnBookings — no se ve afectado por desactivar la organización/
 		expect(mocks.bookingFindMany).toHaveBeenCalledWith(
 			expect.objectContaining({ where: { userId: 'user-1' } }),
 		);
+	});
+});
+
+describe('applyWeekdayDiscount (feature 025)', () => {
+	const hourlyPrice = new Prisma.Decimal('20.00');
+
+	it('sin descuento para ese día, devuelve el precio base sin cambios', () => {
+		const result = applyWeekdayDiscount(hourlyPrice, 3, [
+			{ weekday: 1, discountPercent: new Prisma.Decimal('15') },
+		]);
+
+		expect(result.toString()).toBe('20');
+	});
+
+	it('con descuento para ese día, aplica el porcentaje y redondea a 2 decimales', () => {
+		const result = applyWeekdayDiscount(hourlyPrice, 1, [
+			{ weekday: 1, discountPercent: new Prisma.Decimal('15') },
+		]);
+
+		expect(result.toString()).toBe('17');
+	});
+
+	it('un descuento del 100% deja el precio en cero', () => {
+		const result = applyWeekdayDiscount(hourlyPrice, 1, [
+			{ weekday: 1, discountPercent: new Prisma.Decimal('100') },
+		]);
+
+		expect(result.toString()).toBe('0');
+	});
+});
+
+describe('replaceWeekdayDiscounts (feature 025)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mocks.weekdayDiscountFindMany.mockResolvedValue([
+			{ weekday: 1, discountPercent: new Prisma.Decimal('15') },
+		]);
+	});
+
+	it('reemplaza el conjunto completo: borra todo y vuelve a crear solo lo enviado', async () => {
+		await replaceWeekdayDiscounts('resource-1', {
+			discounts: [{ weekday: 1, discountPercent: 15 }],
+		});
+
+		expect(mocks.weekdayDiscountDeleteMany).toHaveBeenCalledWith({
+			where: { resourceId: 'resource-1' },
+		});
+		expect(mocks.weekdayDiscountCreateMany).toHaveBeenCalledWith({
+			data: [{ resourceId: 'resource-1', weekday: 1, discountPercent: 15 }],
+		});
+	});
+
+	it('un conjunto vacío borra los descuentos existentes sin volver a crear nada', async () => {
+		await replaceWeekdayDiscounts('resource-1', { discounts: [] });
+
+		expect(mocks.weekdayDiscountDeleteMany).toHaveBeenCalledWith({
+			where: { resourceId: 'resource-1' },
+		});
+		expect(mocks.weekdayDiscountCreateMany).not.toHaveBeenCalled();
 	});
 });

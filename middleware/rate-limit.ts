@@ -10,6 +10,7 @@ import { TooManyRequestsError } from '@/errors';
 // RateLimiterRedis (ya hay ioredis en el proyecto, feature 010) si eso llega a importar.
 const ipLimiter = new RateLimiterMemory({ points: 5, duration: 60 * 60 });
 const emailLimiter = new RateLimiterMemory({ points: 3, duration: 60 * 60 * 24 });
+const aiLimiter = new RateLimiterMemory({ points: 10, duration: 60 });
 
 const getClientIp = (req: NextApiRequest): string => {
 	const forwarded = req.headers['x-forwarded-for'];
@@ -43,5 +44,20 @@ export const registerRateLimit = async (
 		throw new TooManyRequestsError();
 	}
 
+	await next();
+};
+
+export const aiRateLimit = async (
+	req: NextApiRequest,
+	_res: NextApiResponse,
+	next: NextHandler,
+): Promise<void> => {
+	try {
+		await aiLimiter.consume(`${req.user?.id ?? 'anonymous'}:${req.url ?? 'ai'}`);
+	} catch {
+		throw new TooManyRequestsError(
+			'Has realizado demasiadas solicitudes al asistente. Intenta más tarde.',
+		);
+	}
 	await next();
 };

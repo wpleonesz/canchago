@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+const optionalString = <T extends z.ZodType>(schema: T) =>
+	z.preprocess(value => (value === '' ? undefined : value), schema.optional());
+
 const envSchema = z.object({
 	NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 	DATABASE_URL: z.string().url(),
@@ -67,6 +70,9 @@ const envSchema = z.object({
 			return value;
 		}, z.boolean())
 		.default(false),
+	AI_LM_STUDIO_BASE_URL: optionalString(z.string().url()),
+	AI_LM_STUDIO_MODEL: optionalString(z.string().trim().min(1)),
+	AI_PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(30000),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

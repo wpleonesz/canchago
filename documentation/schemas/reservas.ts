@@ -3,11 +3,16 @@
 import { z } from 'zod';
 import { registry } from '@/documentation/registry';
 
+const WeekdayDiscount = z.object({
+	weekday: z.number().int().min(0).max(6),
+	discountPercent: z.string(),
+});
 const Resource = z.object({
 	id: z.string().uuid(),
 	name: z.string(),
 	description: z.string().nullable(),
 	status: z.enum(['ACTIVE', 'INACTIVE']),
+	weekdayDiscounts: z.array(WeekdayDiscount),
 	venue: z.object({
 		id: z.string().uuid(),
 		name: z.string(),
@@ -20,7 +25,9 @@ const Slot = z.object({
 	startsAt: z.date(),
 	endsAt: z.date(),
 	status: z.enum(['DRAFT', 'PUBLISHED', 'WITHDRAWN']),
+	effectiveHourlyPrice: z.string(),
 });
+const UpdateWeekdayDiscountsBody = z.object({ discounts: z.array(WeekdayDiscount) });
 const Booking = z.object({
 	id: z.string().uuid(),
 	userId: z.string().uuid(),
@@ -32,6 +39,8 @@ const ErrorResponse = z.object({ error: z.object({ code: z.string(), message: z.
 registry.register('ReservableResource', Resource);
 registry.register('AvailabilitySlot', Slot);
 registry.register('Booking', Booking);
+registry.register('WeekdayDiscount', WeekdayDiscount);
+registry.register('UpdateWeekdayDiscountsBody', UpdateWeekdayDiscountsBody);
 const errors = {
 	400: {
 		description: 'Solicitud inválida',
@@ -103,6 +112,19 @@ registry.registerPath({
 	tags: ['Agendamiento'],
 	security: [{ cookieAuth: [] }],
 	responses: { 201: { description: 'Cancha creada' }, ...errors },
+});
+registry.registerPath({
+	method: 'put',
+	path: '/resources/{resourceId}/weekday-discounts',
+	tags: ['Agendamiento'],
+	security: [{ cookieAuth: [] }],
+	description:
+		'Reemplaza el conjunto completo de descuentos por día de la semana de una cancha (feature 025). Requiere permiso `resources.manage` y el mismo alcance que `PATCH /resources/{resourceId}`. Enviar `discounts: []` quita todos los descuentos existentes.',
+	request: {
+		params: z.object({ resourceId: z.string().uuid() }),
+		body: { content: { 'application/json': { schema: UpdateWeekdayDiscountsBody } } },
+	},
+	responses: { 200: { description: 'Descuentos actualizados' }, ...errors },
 });
 registry.registerPath({
 	method: 'get',

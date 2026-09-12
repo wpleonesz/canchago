@@ -12,6 +12,7 @@ import type {
 	UpdateResourceBody,
 	UpdateSlotBody,
 	UpdateScheduleDayBody,
+	UpdateWeekdayDiscountsBody,
 } from '@/validations/reservas';
 
 export const listResources = repository.listResources;
@@ -48,12 +49,22 @@ export const updateResource = async (
 		throw new ConflictError('La cancha cambió; actualiza antes de reintentar.');
 	return getResource(resourceId);
 };
+export const updateWeekdayDiscounts = async (
+	resourceId: string,
+	body: UpdateWeekdayDiscountsBody,
+	user: SessionUser,
+) => {
+	if (!isAdministrator(user) && !(await repository.actorCanManageResource(user.id, resourceId)))
+		throw new AuthorizationError();
+	await getResource(resourceId);
+	return repository.replaceWeekdayDiscounts(resourceId, body);
+};
 export const listAvailability = async (
 	resourceId: string,
 	query: AvailabilityQuery,
 	user: SessionUser,
 ) => {
-	await getResource(resourceId);
+	const resource = await getResource(resourceId);
 	if (
 		query.includeAll &&
 		!isAdministrator(user) &&
@@ -65,6 +76,11 @@ export const listAvailability = async (
 		...result,
 		data: result.data.map(slot => ({
 			...slot,
+			effectiveHourlyPrice: repository.applyWeekdayDiscount(
+				resource.hourlyPrice,
+				slot.startsAt.getUTCDay(),
+				resource.weekdayDiscounts,
+			),
 			isBooked: slot.bookings.length > 0,
 			bookings: undefined,
 		})),

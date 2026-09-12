@@ -10,7 +10,13 @@ import type {
 	UpdateResourceBody,
 	UpdateSlotBody,
 	UpdateScheduleDayBody,
+	UpdateWeekdayDiscountsBody,
 } from '@/validations/reservas';
+
+const weekdayDiscountSelect = {
+	weekday: true,
+	discountPercent: true,
+} satisfies Prisma.ResourceWeekdayDiscountSelect;
 
 const resourceSelect = {
 	id: true,
@@ -25,12 +31,45 @@ const resourceSelect = {
 	hourlyPrice: true,
 	currency: true,
 	venue: { select: { id: true, name: true, organization: { select: { id: true, name: true } } } },
+	weekdayDiscounts: { select: weekdayDiscountSelect, orderBy: { weekday: 'asc' } },
 } satisfies Prisma.ResourceSelect;
 
 export const calculateTotalPrice = (
 	hourlyPrice: Prisma.Decimal,
 	durationMinutes: number,
 ): Prisma.Decimal => hourlyPrice.mul(durationMinutes).div(60).toDecimalPlaces(2);
+
+// weekday: 0=domingo … 6=sábado, derivado de Date.getUTCDay() sobre AvailabilitySlot.startsAt —
+// mismo criterio "UTC siempre" que rige el resto del dominio (ver spec 025, sección de riesgos).
+export const applyWeekdayDiscount = (
+	hourlyPrice: Prisma.Decimal,
+	weekday: number,
+	discounts: Array<{ weekday: number; discountPercent: Prisma.Decimal }>,
+): Prisma.Decimal => {
+	const match = discounts.find(discount => discount.weekday === weekday);
+	if (!match) return hourlyPrice;
+	const multiplier = new Prisma.Decimal(100).minus(match.discountPercent).div(100);
+	return hourlyPrice.mul(multiplier).toDecimalPlaces(2);
+};
+
+export const replaceWeekdayDiscounts = (resourceId: string, body: UpdateWeekdayDiscountsBody) =>
+	prisma.$transaction(async transaction => {
+		await transaction.resourceWeekdayDiscount.deleteMany({ where: { resourceId } });
+		if (body.discounts.length > 0) {
+			await transaction.resourceWeekdayDiscount.createMany({
+				data: body.discounts.map(discount => ({
+					resourceId,
+					weekday: discount.weekday,
+					discountPercent: discount.discountPercent,
+				})),
+			});
+		}
+		return transaction.resourceWeekdayDiscount.findMany({
+			where: { resourceId },
+			select: weekdayDiscountSelect,
+			orderBy: { weekday: 'asc' },
+		});
+	});
 
 export const listResources = async (page = 1, pageSize = 20, includeInactive = false) => {
 	const { skip, take, meta } = normalizePagination({ page, pageSize });
@@ -338,21 +377,32 @@ export const createBooking = async (userId: string, slotId: string, idempotencyK
 					resourceId: true,
 					startsAt: true,
 					endsAt: true,
-					resource: { select: { hourlyPrice: true, currency: true } },
+					resource: {
+						select: {
+							hourlyPrice: true,
+							currency: true,
+							weekdayDiscounts: { select: weekdayDiscountSelect },
+						},
+					},
 				},
 			});
 			if (!slot) return null;
 			const durationMinutes = Math.round(
 				(slot.endsAt.getTime() - slot.startsAt.getTime()) / 60_000,
 			);
-			const totalPrice = calculateTotalPrice(slot.resource.hourlyPrice, durationMinutes);
+			const effectiveHourlyPrice = applyWeekdayDiscount(
+				slot.resource.hourlyPrice,
+				slot.startsAt.getUTCDay(),
+				slot.resource.weekdayDiscounts,
+			);
+			const totalPrice = calculateTotalPrice(effectiveHourlyPrice, durationMinutes);
 			const booking = await transaction.booking.create({
 				data: {
 					userId,
 					resourceId: slot.resourceId,
 					availabilitySlotId: slot.id,
 					idempotencyKey,
-					hourlyPrice: slot.resource.hourlyPrice,
+					hourlyPrice: effectiveHourlyPrice,
 					durationMinutes,
 					totalPrice,
 					currency: slot.resource.currency,

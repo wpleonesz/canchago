@@ -5,17 +5,9 @@ import {
 	createMonthlyScheduleSchema,
 	createResourceSchema,
 	createSlotSchema,
-} from './index';
-
-import { describe, expect, it } from 'vitest';
-import {
-	availabilityQuerySchema,
-	createBookingSchema,
-	createMonthlyScheduleSchema,
-	createResourceSchema,
-	createSlotSchema,
 	resourceQuerySchema,
 	updateResourceSchema,
+	updateWeekdayDiscountsSchema,
 } from './index';
 
 describe('validaciones de agendamiento', () => {
@@ -104,5 +96,40 @@ describe('validaciones de agendamiento', () => {
 				includeInactive: 'true',
 			}).success,
 		).toBe(true);
+	});
+
+	it('acepta descuentos por día de semana válidos y sin días repetidos (feature 025)', () => {
+		expect(
+			updateWeekdayDiscountsSchema.safeParse({
+				discounts: [
+					{ weekday: 1, discountPercent: 15 },
+					{ weekday: 2, discountPercent: 10 },
+				],
+			}).success,
+		).toBe(true);
+		expect(updateWeekdayDiscountsSchema.safeParse({ discounts: [] }).success).toBe(true);
+	});
+
+	it('rechaza descuentos con día repetido, porcentaje fuera de rango o día fuera de rango', () => {
+		expect(
+			updateWeekdayDiscountsSchema.safeParse({
+				discounts: [
+					{ weekday: 1, discountPercent: 15 },
+					{ weekday: 1, discountPercent: 20 },
+				],
+			}).success,
+		).toBe(false);
+		expect(
+			updateWeekdayDiscountsSchema.safeParse({ discounts: [{ weekday: 1, discountPercent: 0 }] })
+				.success,
+		).toBe(false);
+		expect(
+			updateWeekdayDiscountsSchema.safeParse({ discounts: [{ weekday: 1, discountPercent: 101 }] })
+				.success,
+		).toBe(false);
+		expect(
+			updateWeekdayDiscountsSchema.safeParse({ discounts: [{ weekday: 7, discountPercent: 10 }] })
+				.success,
+		).toBe(false);
 	});
 });

@@ -204,13 +204,30 @@ model Resource {
   updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt   DateTime?      @map("deleted_at") @db.Timestamptz
 
-  venue             Venue              @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  venue             Venue                      @relation(fields: [venueId], references: [id], onDelete: Restrict)
   availabilitySlots AvailabilitySlot[]
   bookings          Booking[]
+  weekdayDiscounts  ResourceWeekdayDiscount[]
 
   @@unique([venueId, name])
   @@index([venueId, status])
   @@map("resources")
+}
+
+model ResourceWeekdayDiscount {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  resourceId      String   @map("resource_id") @db.Uuid
+  // 0=domingo … 6=sábado, mismo criterio que Date.getUTCDay() y que ya usa canchago-ionic para
+  // la programación mensual (WEEKDAYS en AvailabilityManagementPage.tsx).
+  weekday         Int
+  discountPercent Decimal  @map("discount_percent") @db.Decimal(5, 2)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceId, weekday])
+  @@map("resource_weekday_discounts")
 }
 
 model AvailabilitySlot {
