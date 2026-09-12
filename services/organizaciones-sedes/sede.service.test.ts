@@ -36,6 +36,11 @@ vi.mock('./organizacion.service', () => ({
 	ensureOrganizationScope: mocks.ensureOrganizationScope,
 }));
 
+vi.mock('@/services/users/role-guard', () => ({
+	isAdministrator: (user: { roles: Array<{ code: string }> }) =>
+		user.roles.some(role => role.code === 'administrador'),
+}));
+
 import type { SessionUser } from '@/lib/session';
 
 import { create, getById, remove, update } from './sede.service';
@@ -52,6 +57,14 @@ const actor: SessionUser = {
 	roles: [{ id: 'role-admin', code: 'administrador', name: 'Administrador' }],
 	permissions: [],
 };
+
+const buildManagerActor = (): SessionUser => ({
+	id: '123e4567-e89b-42d3-a456-426614174005',
+	email: 'manager@example.com',
+	name: 'Gestor',
+	roles: [{ id: 'role-manager', code: 'gestor-de-cancha', name: 'Gestor de Cancha' }],
+	permissions: [],
+});
 
 describe('sedeService — cierre del IDOR de sede (feature 019)', () => {
 	beforeEach(() => {
@@ -130,5 +143,65 @@ describe('sedeService — cierre del IDOR de sede (feature 019)', () => {
 			statusCode: 404,
 		});
 		expect(mocks.removeVenue).not.toHaveBeenCalled();
+	});
+});
+
+describe('sedeService — cambio de estado exclusivo de Administrador (feature 023)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mocks.ensureOrganizationScope.mockResolvedValue(undefined);
+		mocks.findVenue.mockResolvedValue({
+			id: VENUE_ID,
+			organizationId: ORGANIZATION_ID,
+			updatedAt: new Date(UPDATED_AT),
+		});
+		mocks.updateVenue.mockResolvedValue({ count: 1 });
+		mocks.getDetail.mockResolvedValue({ id: VENUE_ID });
+	});
+
+	it('un Administrador puede cambiar el status de una sede', async () => {
+		await update(
+			VENUE_ID,
+			ORGANIZATION_ID,
+			{ status: 'INACTIVE', expectedUpdatedAt: UPDATED_AT },
+			actor,
+		);
+
+		expect(mocks.updateVenue).toHaveBeenCalledWith(
+			VENUE_ID,
+			ORGANIZATION_ID,
+			expect.any(Date),
+			expect.objectContaining({ status: 'INACTIVE' }),
+		);
+		expect(mocks.writeAudit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				action: 'VENUE_UPDATED',
+				changes: expect.objectContaining({ status: 'INACTIVE' }),
+			}),
+		);
+	});
+
+	it('un Gestor con alcance real recibe 403 al enviar status, sin tocar la base', async () => {
+		await expect(
+			update(
+				VENUE_ID,
+				ORGANIZATION_ID,
+				{ status: 'INACTIVE', expectedUpdatedAt: UPDATED_AT },
+				buildManagerActor(),
+			),
+		).rejects.toMatchObject({ statusCode: 403 });
+		expect(mocks.updateVenue).not.toHaveBeenCalled();
+		expect(mocks.writeAudit).not.toHaveBeenCalled();
+	});
+
+	it('un Gestor puede seguir editando otros campos sin enviar status', async () => {
+		await expect(
+			update(
+				VENUE_ID,
+				ORGANIZATION_ID,
+				{ name: 'Nuevo nombre', expectedUpdatedAt: UPDATED_AT },
+				buildManagerActor(),
+			),
+		).resolves.toEqual({ id: VENUE_ID });
 	});
 });

@@ -18,6 +18,9 @@ export const updateSedeSchema = z
 		address: z.string().max(500).optional().or(z.literal('')),
 		phone: z.string().max(20).optional().or(z.literal('')),
 		email: z.string().email('Invalid email format').optional().or(z.literal('')),
+		// Exclusivo de Administrador global (ver sede.service.ts::update); nunca acepta
+		// 'PENDING_APPROVAL', que solo controla el flujo de aprobación de solicitudes (feature 016).
+		status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
 		expectedUpdatedAt: z.string().datetime({ offset: true }),
 	})
 	.strict()
@@ -26,7 +29,8 @@ export const updateSedeSchema = z
 			value.name !== undefined ||
 			value.address !== undefined ||
 			value.phone !== undefined ||
-			value.email !== undefined,
+			value.email !== undefined ||
+			value.status !== undefined,
 		{ message: 'Debes enviar al menos un campo editable.' },
 	);
 

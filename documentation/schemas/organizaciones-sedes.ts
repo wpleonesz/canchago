@@ -50,6 +50,10 @@ export const UpdateOrganizationBodySchema = CreateOrganizationBodySchema.partial
 	// Concurrencia optimista (feature 019): el timestamp updatedAt recibido en el último GET.
 	// Si no coincide con el real, PATCH responde 409 sin aplicar ningún cambio.
 	expectedUpdatedAt: z.string().datetime(),
+	// Exclusivo de Administrador global (feature 023): cualquier otro actor que lo envíe recibe
+	// 403, aunque tenga organizaciones.manage y alcance real sobre la organización. Nunca acepta
+	// 'PENDING_APPROVAL', que solo controla el flujo de aprobación de solicitudes (feature 016).
+	status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
 });
 
 export const OrganizationListResponseSchema = z.object({
@@ -79,6 +83,9 @@ export const CreateSedeBodySchema = z.object({
 export const UpdateSedeBodySchema = CreateSedeBodySchema.partial().extend({
 	// Concurrencia optimista (feature 019): mismo criterio que UpdateOrganizationBodySchema.
 	expectedUpdatedAt: z.string().datetime(),
+	// Exclusivo de Administrador global (feature 023), mismo criterio que
+	// UpdateOrganizationBodySchema.status.
+	status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
 });
 
 export const SedeListResponseSchema = z.object({
@@ -259,7 +266,7 @@ registry.registerPath({
 	tags: ['Organizaciones'],
 	security: [{ cookieAuth: [] }],
 	description:
-		'Actualiza una organización. Requiere permiso `organizaciones.manage` y alcance sobre la organización (un actor no administrador global sin alcance recibe 404 opaco, no 403). `expectedUpdatedAt` es obligatorio: si no coincide con el `updatedAt` real, responde 409 sin aplicar cambios (concurrencia optimista).',
+		'Actualiza una organización. Requiere permiso `organizaciones.manage` y alcance sobre la organización (un actor no administrador global sin alcance recibe 404 opaco, no 403). `expectedUpdatedAt` es obligatorio: si no coincide con el `updatedAt` real, responde 409 sin aplicar cambios (concurrencia optimista). El campo `status` (feature 023) solo puede enviarlo un Administrador global: cualquier otro actor que lo incluya recibe 403, aunque tenga alcance real sobre la organización.',
 	parameters: [organizationIdParam],
 	requestBody: {
 		required: true,
@@ -426,7 +433,7 @@ registry.registerPath({
 	tags: ['Sedes'],
 	security: [{ cookieAuth: [] }],
 	description:
-		'Actualiza una sede. Requiere permiso `organizaciones.manage` y alcance sobre `organizationId`. La sede debe pertenecer exactamente a esa organización — un `sedeId` real de otra organización responde 404 opaco, nunca los datos de esa sede. `expectedUpdatedAt` es obligatorio (concurrencia optimista, mismo criterio que organizaciones).',
+		'Actualiza una sede. Requiere permiso `organizaciones.manage` y alcance sobre `organizationId`. La sede debe pertenecer exactamente a esa organización — un `sedeId` real de otra organización responde 404 opaco, nunca los datos de esa sede. `expectedUpdatedAt` es obligatorio (concurrencia optimista, mismo criterio que organizaciones). El campo `status` (feature 023) solo puede enviarlo un Administrador global, mismo criterio que en organizaciones.',
 	parameters: [organizationIdParam, sedeIdParam],
 	requestBody: {
 		required: true,

@@ -1,7 +1,8 @@
 import { sedeDb } from '@/database/organizaciones-sedes';
-import { ConflictError, NotFoundError } from '@/errors';
+import { AuthorizationError, ConflictError, NotFoundError } from '@/errors';
 import { normalizeVenueName } from '@/helper/organizaciones';
 import type { SessionUser } from '@/lib/session';
+import { isAdministrator } from '@/services/users/role-guard';
 import type {
 	CreateSedeBody,
 	SedeQueryParams,
@@ -77,6 +78,10 @@ export const update = async (
 ) => {
 	await ensureOrganizationScope(actingUser, organizationId, true);
 
+	if (data.status !== undefined && !isAdministrator(actingUser)) {
+		throw new AuthorizationError('Solo un administrador puede cambiar el estado de la sede.');
+	}
+
 	try {
 		return await sedeDb.withTransaction(async repository => {
 			const current = await repository.findVenue(sedeId, organizationId);
@@ -95,6 +100,7 @@ export const update = async (
 					...(editable.address !== undefined ? { address: editable.address || null } : {}),
 					...(editable.phone !== undefined ? { phone: editable.phone || null } : {}),
 					...(editable.email !== undefined ? { email: editable.email || null } : {}),
+					...(editable.status !== undefined ? { status: editable.status } : {}),
 					updatedAt: new Date(),
 				},
 			);

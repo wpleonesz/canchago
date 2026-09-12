@@ -150,3 +150,77 @@ describe('organizacionService — alcance por organización (feature 019)', () =
 		expect(mocks.removeWithCascade).not.toHaveBeenCalled();
 	});
 });
+
+describe('organizacionService — cambio de estado exclusivo de Administrador (feature 023)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mocks.findOrganization.mockResolvedValue({
+			id: ORGANIZATION_ID,
+			updatedAt: new Date(UPDATED_AT),
+		});
+		mocks.updateOrganization.mockResolvedValue({ count: 1 });
+		mocks.getDetail.mockResolvedValue({ id: ORGANIZATION_ID });
+	});
+
+	it('un Administrador puede cambiar el status', async () => {
+		mocks.actorHasOrganizationScope.mockResolvedValue(false);
+
+		await update(
+			ORGANIZATION_ID,
+			{ status: 'INACTIVE', expectedUpdatedAt: UPDATED_AT },
+			buildUser({ administrator: true }),
+		);
+
+		expect(mocks.updateOrganization).toHaveBeenCalledWith(
+			ORGANIZATION_ID,
+			expect.any(Date),
+			expect.objectContaining({ status: 'INACTIVE' }),
+		);
+		expect(mocks.writeAudit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				action: 'ORGANIZATION_UPDATED',
+				changes: expect.objectContaining({ status: 'INACTIVE' }),
+			}),
+		);
+	});
+
+	it('un actor no administrador con alcance real recibe 403 al enviar status, sin tocar la base', async () => {
+		mocks.actorHasOrganizationScope.mockResolvedValue(true);
+
+		await expect(
+			update(
+				ORGANIZATION_ID,
+				{ status: 'INACTIVE', expectedUpdatedAt: UPDATED_AT },
+				buildUser({ administrator: false }),
+			),
+		).rejects.toMatchObject({ statusCode: 403 });
+		expect(mocks.updateOrganization).not.toHaveBeenCalled();
+		expect(mocks.writeAudit).not.toHaveBeenCalled();
+	});
+
+	it('un actor no administrador puede seguir editando otros campos sin enviar status', async () => {
+		mocks.actorHasOrganizationScope.mockResolvedValue(true);
+
+		await expect(
+			update(
+				ORGANIZATION_ID,
+				{ name: 'Nuevo nombre', expectedUpdatedAt: UPDATED_AT },
+				buildUser({ administrator: false }),
+			),
+		).resolves.toEqual({ id: ORGANIZATION_ID });
+	});
+
+	it('un status con expectedUpdatedAt obsoleto responde 409 sin auditar', async () => {
+		mocks.actorHasOrganizationScope.mockResolvedValue(false);
+		mocks.updateOrganization.mockResolvedValue({ count: 0 });
+
+		await expect(
+			update(
+				ORGANIZATION_ID,
+				{ status: 'INACTIVE', expectedUpdatedAt: UPDATED_AT },
+				buildUser({ administrator: true }),
+			),
+		).rejects.toMatchObject({ statusCode: 409 });
+		expect(mocks.writeAudit).not.toHaveBeenCalled();
+	});
+});

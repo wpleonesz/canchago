@@ -84,6 +84,12 @@ export const update = async (
 ) => {
 	await ensureOrganizationScope(actingUser, organizationId, true);
 
+	if (data.status !== undefined && !isAdministrator(actingUser)) {
+		throw new AuthorizationError(
+			'Solo un administrador puede cambiar el estado de la organización.',
+		);
+	}
+
 	try {
 		return await organizacionDb.withTransaction(
 			async (repository: OrganizationTransactionRepository) => {
@@ -111,6 +117,7 @@ export const update = async (
 						...(editable.email !== undefined ? { email: editable.email || null } : {}),
 						...(editable.phone !== undefined ? { phone: editable.phone || null } : {}),
 						...(editable.domain !== undefined ? { domain: editable.domain || null } : {}),
+						...(editable.status !== undefined ? { status: editable.status } : {}),
 						updatedAt: new Date(),
 					},
 				);

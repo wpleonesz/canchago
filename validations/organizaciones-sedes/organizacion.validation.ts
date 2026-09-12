@@ -22,6 +22,9 @@ export const updateOrganizationSchema = z
 		email: z.string().email('Invalid email format').optional().or(z.literal('')),
 		phone: z.string().max(20).optional().or(z.literal('')),
 		domain: z.string().max(255).optional().or(z.literal('')),
+		// Exclusivo de Administrador global (ver organizacion.service.ts::update); nunca acepta
+		// 'PENDING_APPROVAL', que solo controla el flujo de aprobación de solicitudes (feature 016).
+		status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
 		expectedUpdatedAt: z.string().datetime({ offset: true }),
 	})
 	.strict()
@@ -32,7 +35,8 @@ export const updateOrganizationSchema = z
 			value.taxIdentification !== undefined ||
 			value.email !== undefined ||
 			value.phone !== undefined ||
-			value.domain !== undefined,
+			value.domain !== undefined ||
+			value.status !== undefined,
 		{ message: 'Debes enviar al menos un campo editable.' },
 	);
 

@@ -40,6 +40,30 @@ describe('validación de sedes', () => {
 		).toBe(false);
 	});
 
+	it('acepta status ACTIVE/INACTIVE en PATCH (feature 023)', () => {
+		expect(
+			updateSedeSchema.safeParse({
+				status: 'INACTIVE',
+				expectedUpdatedAt: '2026-08-29T12:00:00.000Z',
+			}).success,
+		).toBe(true);
+		expect(
+			updateSedeSchema.safeParse({
+				status: 'ACTIVE',
+				expectedUpdatedAt: '2026-08-29T12:00:00.000Z',
+			}).success,
+		).toBe(true);
+	});
+
+	it('rechaza PENDING_APPROVAL u otros valores de status en PATCH', () => {
+		expect(
+			updateSedeSchema.safeParse({
+				status: 'PENDING_APPROVAL',
+				expectedUpdatedAt: '2026-08-29T12:00:00.000Z',
+			}).success,
+		).toBe(false);
+	});
+
 	it('sedeQuerySchema y sedeCollectionParamsSchema no son .strict(): comparten req.query en el listado', () => {
 		// Ambos deben tolerar las claves de la otra schema al parsear el mismo objeto, o el
 		// listado real (sedes/index.ts GET) rompería con 400 en cada petición.
