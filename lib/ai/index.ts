@@ -49,7 +49,11 @@ export class LmStudioProvider implements AiProvider {
 					model: this.config.model,
 					temperature: 0.2,
 					max_tokens: 700,
-					response_format: { type: 'json_object' },
+					// 'json_object' no lo soportan todos los servidores compatibles con OpenAI — LM
+					// Studio (probado 2026-09-12, openai/gpt-oss-20b) responde 400 "'response_format.type'
+					// must be 'json_schema' or 'text'". 'text' sí es universal; la instrucción de sistema ya
+					// exige JSON explícitamente y la respuesta se valida igual con Zod antes de usarse.
+					response_format: { type: 'text' },
 					messages: [
 						{ role: 'system', content: request.systemInstruction },
 						{ role: 'user', content: JSON.stringify({ data: request.context }) },
