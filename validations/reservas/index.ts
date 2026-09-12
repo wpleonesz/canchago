@@ -17,23 +17,31 @@ export const slotParamsSchema = resourceParamsSchema.extend({ slotId: uuid });
 export const bookingParamsSchema = z.object({ bookingId: uuid });
 export const resourceCollectionParamsSchema = z.object({ organizationId: uuid, sedeId: uuid });
 
-const resourceFields = z
-	.object({
-		name: z.string().trim().min(1).max(150),
-		description: z.string().trim().max(1000).optional(),
-		address: z.string().trim().min(5).max(300),
-		latitude: z.coerce.number().min(-90).max(90).optional(),
-		longitude: z.coerce.number().min(-180).max(180).optional(),
-		hourlyPrice: z.coerce.number().min(0).max(999999.99),
-		status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-	})
-	.refine(value => (value.latitude === undefined) === (value.longitude === undefined), {
+const resourceBaseShape = z.object({
+	name: z.string().trim().min(1).max(150),
+	description: z.string().trim().max(1000).optional(),
+	address: z.string().trim().min(5).max(300),
+	latitude: z.coerce.number().min(-90).max(90).optional(),
+	longitude: z.coerce.number().min(-180).max(180).optional(),
+	hourlyPrice: z.coerce.number().min(0).max(999999.99),
+	status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+});
+
+const validateCoordinates = (value: { latitude?: number; longitude?: number }) =>
+	(value.latitude === undefined) === (value.longitude === undefined);
+
+export const createResourceSchema = resourceBaseShape.refine(validateCoordinates, {
+	message: 'Latitud y longitud deben enviarse juntas.',
+	path: ['longitude'],
+});
+
+export const updateResourceSchema = resourceBaseShape
+	.partial()
+	.extend({ expectedUpdatedAt: instant })
+	.refine(validateCoordinates, {
 		message: 'Latitud y longitud deben enviarse juntas.',
 		path: ['longitude'],
 	});
-
-export const createResourceSchema = resourceFields;
-export const updateResourceSchema = resourceFields.partial().extend({ expectedUpdatedAt: instant });
 
 export const createSlotSchema = z
 	.object({ startsAt: instant, endsAt: instant, publish: z.boolean().optional() })
