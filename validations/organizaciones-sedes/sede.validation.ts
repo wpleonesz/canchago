@@ -40,6 +40,7 @@ export const sedeQuerySchema = z.object({
 	search: z.string().max(255).optional(),
 	orderBy: z.enum(ALLOWED_ORDER_BY).optional(),
 	order: z.enum(ALLOWED_ORDER).optional(),
+	status: z.string().max(50).optional(),
 });
 
 export const sedeParamsSchema = z

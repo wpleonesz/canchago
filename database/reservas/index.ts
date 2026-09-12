@@ -6,6 +6,8 @@ import type {
 	CreateResourceBody,
 	CreateMonthlyScheduleBody,
 	CreateSlotBody,
+	ManagedBookingsQuery,
+	UpdateResourceBody,
 	UpdateSlotBody,
 	UpdateScheduleDayBody,
 } from '@/validations/reservas';
@@ -17,18 +19,31 @@ const resourceSelect = {
 	status: true,
 	createdAt: true,
 	updatedAt: true,
+	address: true,
+	latitude: true,
+	longitude: true,
+	hourlyPrice: true,
+	currency: true,
 	venue: { select: { id: true, name: true, organization: { select: { id: true, name: true } } } },
 } satisfies Prisma.ResourceSelect;
 
-export const listResources = async (page = 1, pageSize = 20) => {
+export const calculateTotalPrice = (
+	hourlyPrice: Prisma.Decimal,
+	durationMinutes: number,
+): Prisma.Decimal => hourlyPrice.mul(durationMinutes).div(60).toDecimalPlaces(2);
+
+export const listResources = async (page = 1, pageSize = 20, includeInactive = false) => {
 	const { skip, take, meta } = normalizePagination({ page, pageSize });
 	const where = {
-		status: 'ACTIVE' as const,
 		deletedAt: null,
+		...(includeInactive ? {} : { status: 'ACTIVE' as const }),
 		venue: {
-			status: 'ACTIVE',
 			deletedAt: null,
-			organization: { status: 'ACTIVE', deletedAt: null },
+			...(includeInactive ? {} : { status: 'ACTIVE' }),
+			organization: {
+				deletedAt: null,
+				...(includeInactive ? {} : { status: 'ACTIVE' }),
+			},
 		},
 	};
 	const [data, total] = await Promise.all([
@@ -48,12 +63,10 @@ export const getResource = (resourceId: string) =>
 	prisma.resource.findFirst({
 		where: {
 			id: resourceId,
-			status: 'ACTIVE',
 			deletedAt: null,
 			venue: {
-				status: 'ACTIVE',
 				deletedAt: null,
-				organization: { status: 'ACTIVE', deletedAt: null },
+				organization: { deletedAt: null },
 			},
 		},
 		select: resourceSelect,
@@ -97,8 +110,30 @@ export const actorCanManageResource = async (userId: string, resourceId: string)
 
 export const createResource = (venueId: string, body: CreateResourceBody) =>
 	prisma.resource.create({
-		data: { venueId, name: body.name, description: body.description || null },
+		data: {
+			venueId,
+			name: body.name,
+			description: body.description || null,
+			address: body.address,
+			latitude: body.latitude,
+			longitude: body.longitude,
+			hourlyPrice: body.hourlyPrice,
+		},
 		select: resourceSelect,
+	});
+
+export const updateResource = (resourceId: string, body: UpdateResourceBody) =>
+	prisma.resource.updateMany({
+		where: { id: resourceId, updatedAt: new Date(body.expectedUpdatedAt), deletedAt: null },
+		data: {
+			name: body.name,
+			description: body.description,
+			address: body.address,
+			latitude: body.latitude,
+			longitude: body.longitude,
+			hourlyPrice: body.hourlyPrice,
+			status: body.status,
+		},
 	});
 
 export const getVenue = (organizationId: string, venueId: string) =>
@@ -298,11 +333,30 @@ export const createBooking = async (userId: string, slotId: string, idempotencyK
 						},
 					},
 				},
-				select: { id: true, resourceId: true },
+				select: {
+					id: true,
+					resourceId: true,
+					startsAt: true,
+					endsAt: true,
+					resource: { select: { hourlyPrice: true, currency: true } },
+				},
 			});
 			if (!slot) return null;
+			const durationMinutes = Math.round(
+				(slot.endsAt.getTime() - slot.startsAt.getTime()) / 60_000,
+			);
+			const totalPrice = calculateTotalPrice(slot.resource.hourlyPrice, durationMinutes);
 			const booking = await transaction.booking.create({
-				data: { userId, resourceId: slot.resourceId, availabilitySlotId: slot.id, idempotencyKey },
+				data: {
+					userId,
+					resourceId: slot.resourceId,
+					availabilitySlotId: slot.id,
+					idempotencyKey,
+					hourlyPrice: slot.resource.hourlyPrice,
+					durationMinutes,
+					totalPrice,
+					currency: slot.resource.currency,
+				},
 			});
 			return { booking, repeated: false, idempotencyConflict: false };
 		},
@@ -337,3 +391,36 @@ export const cancelOwnBooking = async (userId: string, bookingId: string) =>
 
 export const getOwnBooking = (userId: string, bookingId: string) =>
 	prisma.booking.findFirst({ where: { id: bookingId, userId } });
+
+export const listManagedBookings = async (resourceId: string, query: ManagedBookingsQuery) => {
+	const { skip, take, meta } = normalizePagination(query);
+	const where = { resourceId, status: query.status };
+	const [data, total] = await Promise.all([
+		prisma.booking.findMany({
+			where,
+			select: {
+				id: true,
+				status: true,
+				hourlyPrice: true,
+				durationMinutes: true,
+				totalPrice: true,
+				currency: true,
+				createdAt: true,
+				cancelledAt: true,
+				availabilitySlot: { select: { startsAt: true, endsAt: true } },
+				user: {
+					select: {
+						id: true,
+						email: true,
+						profile: { select: { firstName: true, lastName: true } },
+					},
+				},
+			},
+			skip,
+			take,
+			orderBy: { availabilitySlot: { startsAt: 'desc' } },
+		}),
+		prisma.booking.count({ where }),
+	]);
+	return { data, meta: meta(total) };
+};

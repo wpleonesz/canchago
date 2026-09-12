@@ -11,6 +11,9 @@ _Estado de ejecución. El núcleo funcional está implementado; permanecen abier
 
 ## Persistencia y backend
 
+- [ ] Añadir ubicación y tarifa horaria al recurso, y snapshot monetario a la reserva mediante migración aditiva.
+- [ ] Añadir actualización protegida del recurso y listado administrativo de reservas por cancha.
+
 - [ ] **T05** Cerrar la relación recurso→sede→organización y la guarda de scope del Gestor.
 - [ ] **T06** Cerrar el modelo conceptual/físico mínimo del recurso reservable.
 - [ ] **T07** Cerrar modelo, estados y transiciones de franjas.
@@ -32,6 +35,9 @@ _Estado de ejecución. El núcleo funcional está implementado; permanecen abier
 - [ ] Verificar `/api/docs` y que OpenAPI coincida con el código real.
 
 ## Aplicación móvil
+
+- [ ] Mostrar dirección, “Cómo llegar”, tarifa por hora y total antes/después de reservar.
+- [ ] Añadir vista “Reservas recibidas” para Gestor/Administrador.
 
 - [ ] **T18** Verificar el contrato implementado y actualizar `canchago-ionic/spec/constitution/api-integration.md`.
 - [ ] **T19** Crear tipos TypeScript y validaciones Zod basados en el contrato real.

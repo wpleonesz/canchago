@@ -3,7 +3,19 @@ import {
 	availabilityQuerySchema,
 	createBookingSchema,
 	createMonthlyScheduleSchema,
+	createResourceSchema,
 	createSlotSchema,
+} from './index';
+
+import { describe, expect, it } from 'vitest';
+import {
+	availabilityQuerySchema,
+	createBookingSchema,
+	createMonthlyScheduleSchema,
+	createResourceSchema,
+	createSlotSchema,
+	resourceQuerySchema,
+	updateResourceSchema,
 } from './index';
 
 describe('validaciones de agendamiento', () => {
@@ -59,6 +71,37 @@ describe('validaciones de agendamiento', () => {
 					{ startsAt: '2026-10-05T13:00:00.000Z', endsAt: '2026-10-05T14:00:00.000Z' },
 					{ startsAt: '2026-10-07T13:00:00.000Z', endsAt: '2026-10-07T14:00:00.000Z' },
 				],
+			}).success,
+		).toBe(true);
+	});
+
+	it('valida precio, coordenadas emparejadas y estado de una cancha', () => {
+		expect(
+			createResourceSchema.safeParse({
+				name: 'Cancha 1',
+				address: 'Av. Principal 123',
+				hourlyPrice: 25,
+				latitude: -0.18,
+				longitude: -78.47,
+			}).success,
+		).toBe(true);
+		expect(
+			createResourceSchema.safeParse({
+				name: 'Cancha 1',
+				address: 'Av. Principal 123',
+				hourlyPrice: 25,
+				latitude: -0.18,
+			}).success,
+		).toBe(false);
+		expect(
+			updateResourceSchema.safeParse({
+				status: 'INACTIVE',
+				expectedUpdatedAt: '2026-09-20T10:00:00.000Z',
+			}).success,
+		).toBe(true);
+		expect(
+			resourceQuerySchema.safeParse({
+				includeInactive: 'true',
 			}).success,
 		).toBe(true);
 	});

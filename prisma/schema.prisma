@@ -194,6 +194,11 @@ model Resource {
   venueId     String         @map("venue_id") @db.Uuid
   name        String         @db.VarChar(150)
   description String?        @db.Text
+  address     String         @default("") @db.VarChar(300)
+  latitude    Decimal?       @db.Decimal(9, 6)
+  longitude   Decimal?       @db.Decimal(9, 6)
+  hourlyPrice Decimal        @default(0) @map("hourly_price") @db.Decimal(10, 2)
+  currency    String         @default("USD") @db.VarChar(3)
   status      ResourceStatus @default(ACTIVE)
   createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz
@@ -234,6 +239,10 @@ model Booking {
   availabilitySlotId String        @map("availability_slot_id") @db.Uuid
   status             BookingStatus @default(CONFIRMED)
   idempotencyKey     String        @map("idempotency_key") @db.VarChar(100)
+  hourlyPrice        Decimal       @map("hourly_price") @db.Decimal(10, 2)
+  durationMinutes    Int           @map("duration_minutes")
+  totalPrice         Decimal       @map("total_price") @db.Decimal(10, 2)
+  currency           String        @default("USD") @db.VarChar(3)
   cancelledAt        DateTime?     @map("cancelled_at") @db.Timestamptz
   createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz

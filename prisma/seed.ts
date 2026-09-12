@@ -29,6 +29,7 @@ const PERMISSIONS = [
 	{ module: 'availability', action: 'manage', description: 'Administrar horarios propios' },
 	{ module: 'bookings', action: 'create', description: 'Crear reservas propias' },
 	{ module: 'bookings', action: 'read.own', description: 'Consultar reservas propias' },
+	{ module: 'bookings', action: 'read.manage', description: 'Consultar reservas administradas' },
 	{ module: 'bookings', action: 'cancel.own', description: 'Cancelar reservas propias' },
 ];
 

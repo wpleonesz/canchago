@@ -21,8 +21,10 @@ La fuente de verdad de disponibilidad y autorización será siempre backend+base
 
 5. **T05 · Alcance del recurso** — relacionar conceptualmente cada recurso reservable con una `Venue`; reutilizar `Organization` mediante esa FK y `UserRole` para autorizar gestores, sin una relación gestor→cancha redundante.
 6. **T06 · Modelo de recurso** — definir campos mínimos, estado cerrado, timestamps, soft delete, FK e índices.
+   - Incluir dirección, coordenadas decimales y tarifa horaria USD; actualizar mediante versión esperada.
 7. **T07 · Modelo de franja** — definir recurso, intervalo UTC, estado mínimo, versión/timestamps y actor/auditoría.
 8. **T08 · Modelo de reserva** — definir futbolista, recurso/franja, estado, timestamps y cancelación histórica.
+   - Congelar tarifa horaria, duración y total monetario en la reserva confirmada.
 9. **T09 · Idempotencia** — definir almacenamiento de clave, usuario, huella de request y respuesta/entidad resultante.
 10. **T10 · Migración aditiva** — preparar una migración nueva con FKs, índices, checks y una garantía PostgreSQL de no solapamiento; verificar extensión/restricción en el mismo entorno real antes de fijar SQL.
 
@@ -45,6 +47,7 @@ La fuente de verdad de disponibilidad y autorización será siempre backend+base
 22. **T22 · Gestión del Gestor** — asistente mensual de tres pasos (cancha/mes → días → bloques), creación masiva atómica, resumen previo y cierre/reapertura de franjas concretas.
 23. **T23 · Reserva del Futbolista** — catálogo, detalle, fecha, franja, resumen, confirmación, 409 con refetch y contexto preservado ante red.
 24. **T24 · Mis reservas** — listado/detalle/cancelación propia con confirmación y estados reales.
+   - Mostrar precio y acceso a indicaciones; añadir reservas recibidas para Gestor/Administrador con identidad mínima del futbolista.
 25. **T25 · Navegación/guards/formulario de usuario** — adaptar menú y rutas por permisos, separar módulos del Futbolista y corregir la organización condicional del `UserForm`.
 
 ### Fase 4 — Verificación y cierre

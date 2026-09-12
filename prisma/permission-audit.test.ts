@@ -18,6 +18,7 @@ describe('extractRequiredPermissionCodes (feature 021)', () => {
 				'bookings.cancel.own',
 				'bookings.create',
 				'bookings.read.own',
+				'bookings.read.manage',
 				'menus.read',
 				'organizaciones.manage',
 				'organizaciones.read',

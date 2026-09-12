@@ -8,6 +8,8 @@ import type {
 	CreateMonthlyScheduleBody,
 	CreateResourceBody,
 	CreateSlotBody,
+	ManagedBookingsQuery,
+	UpdateResourceBody,
 	UpdateSlotBody,
 	UpdateScheduleDayBody,
 } from '@/validations/reservas';
@@ -32,6 +34,19 @@ export const createResource = async (
 	if (!(await repository.getVenue(organizationId, venueId)))
 		throw new NotFoundError('La sede solicitada no está disponible.');
 	return repository.createResource(venueId, body);
+};
+export const updateResource = async (
+	resourceId: string,
+	body: UpdateResourceBody,
+	user: SessionUser,
+) => {
+	if (!isAdministrator(user) && !(await repository.actorCanManageResource(user.id, resourceId)))
+		throw new AuthorizationError();
+	await getResource(resourceId);
+	const result = await repository.updateResource(resourceId, body);
+	if (result.count === 0)
+		throw new ConflictError('La cancha cambió; actualiza antes de reintentar.');
+	return getResource(resourceId);
 };
 export const listAvailability = async (
 	resourceId: string,
@@ -146,4 +161,14 @@ export const cancelOwnBooking = async (bookingId: string, user: SessionUser) => 
 		throw new NotFoundError('La reserva solicitada no existe.');
 	const result = await repository.cancelOwnBooking(user.id, bookingId);
 	if (result.count === 0) throw new ConflictError('La reserva ya no puede cancelarse.');
+};
+export const listManagedBookings = async (
+	resourceId: string,
+	query: ManagedBookingsQuery,
+	user: SessionUser,
+) => {
+	if (!isAdministrator(user) && !(await repository.actorCanManageResource(user.id, resourceId)))
+		throw new AuthorizationError();
+	await getResource(resourceId);
+	return repository.listManagedBookings(resourceId, query);
 };

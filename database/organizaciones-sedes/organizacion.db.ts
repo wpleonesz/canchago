@@ -112,6 +112,10 @@ export const getAll = async (
 
 	const where: Prisma.OrganizationWhereInput = {
 		deletedAt: null,
+		...(filters.status ? { status: filters.status } : {}),
+		...(filters.hasActiveVenues === 'true'
+			? { venues: { some: { status: 'ACTIVE', deletedAt: null } } }
+			: {}),
 		...(!actor.isAdministrator
 			? {
 					OR: [

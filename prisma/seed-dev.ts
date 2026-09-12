@@ -127,6 +127,7 @@ const grantBookingPermissions = async (): Promise<void> => {
 				'availability.read',
 				'availability.manage',
 				'bookings.read.own',
+				'bookings.read.manage',
 				'organizaciones.read',
 			],
 		],

@@ -92,6 +92,7 @@ export const getAll = async (organizationId: string, filters: SedeQueryParams) =
 	const where: Prisma.VenueWhereInput = {
 		organizationId,
 		deletedAt: null,
+		...(filters.status ? { status: filters.status } : {}),
 	};
 
 	if (filters.search) {

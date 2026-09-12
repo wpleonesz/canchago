@@ -217,6 +217,7 @@ export const approveAccessRequest = async (requestId: string, reviewerUserId: st
 						'availability.read',
 						'availability.manage',
 						'bookings.read.own',
+						'bookings.read.manage',
 						'organizaciones.read',
 					],
 				},

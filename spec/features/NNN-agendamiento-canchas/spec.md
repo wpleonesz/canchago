@@ -53,6 +53,9 @@ Cada recurso deberá:
 - aplicar soft delete si puede ser referenciado por reservas históricas;
 - exponer solo registros habilitados al Futbolista;
 - poder ser administrado únicamente desde un alcance de organización/sede compatible.
+- definir dirección visible, latitud/longitud opcionales pero siempre en pareja y una tarifa por hora en USD con `Decimal`, nunca `Float`;
+- permitir que Gestor y Administrador actualicen ubicación y tarifa con concurrencia optimista;
+- entregar al cliente coordenadas suficientes para construir la acción externa “Cómo llegar”, sin exigir una dependencia de mapas ni una API key.
 
 ### Disponibilidad o franja
 
@@ -77,6 +80,7 @@ Una reserva deberá relacionar:
 - al recurso/cancha;
 - a la franja concreta o, si el diseño final usa intervalos directamente, al intervalo inmutable reservado;
 - su estado, timestamps y trazabilidad de cancelación.
+- la tarifa por hora y el total calculado como snapshot inmutable al confirmar, para que cambios posteriores de precio no alteren reservas históricas.
 
 El ID del futbolista se obtiene exclusivamente de la sesión. Nunca se acepta un `userId` arbitrario en el body. Crear una reserva no crea ni actualiza `UserRole`.
 
@@ -110,6 +114,13 @@ Estados mínimos conceptuales: **confirmada** y **cancelada**. No se incorpora p
 - Una clave de idempotencia por usuario/operación evita duplicados por doble toque o reintento de red; reutilizar la misma clave con otro payload se rechaza.
 - Una cancelación propia, si se permite por política temporal/estado, conserva la reserva como histórica y libera la franja atómicamente.
 - Un Futbolista solo lista, consulta o cancela reservas cuyo usuario sea el de sesión.
+- Antes de confirmar ve dirección, precio por hora, duración y total. Desde la cancha o la reserva puede abrir indicaciones usando las coordenadas disponibles.
+
+### Consulta administrativa de reservas
+
+- Gestor y Administrador listan reservas por cancha con paginación y filtros cerrados, incluyendo estado, horario, precio y la identidad mínima necesaria del futbolista: nombre y correo.
+- El Gestor solo consulta canchas dentro del alcance de su `UserRole`; el Administrador conserva alcance global.
+- La identidad del futbolista no se expone en endpoints públicos ni a otros futbolistas.
 
 ## Autorización y seguridad
 

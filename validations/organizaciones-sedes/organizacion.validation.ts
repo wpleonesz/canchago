@@ -43,6 +43,8 @@ export const organizationQuerySchema = z
 		search: z.string().max(255).optional(),
 		orderBy: z.enum(ALLOWED_ORDER_BY).optional(),
 		order: z.enum(ALLOWED_ORDER).optional(),
+		status: z.string().max(50).optional(),
+		hasActiveVenues: z.enum(['true', 'false']).optional(),
 	})
 	.strict();
 

@@ -8,15 +8,32 @@ export const paginationSchema = z.object({
 	pageSize: z.coerce.number().int().min(1).max(100).optional(),
 });
 
+export const resourceQuerySchema = paginationSchema.extend({
+	includeInactive: z.enum(['true', 'false']).optional(),
+});
+
 export const resourceParamsSchema = z.object({ resourceId: uuid });
 export const slotParamsSchema = resourceParamsSchema.extend({ slotId: uuid });
 export const bookingParamsSchema = z.object({ bookingId: uuid });
 export const resourceCollectionParamsSchema = z.object({ organizationId: uuid, sedeId: uuid });
 
-export const createResourceSchema = z.object({
-	name: z.string().trim().min(1).max(150),
-	description: z.string().trim().max(1000).optional(),
-});
+const resourceFields = z
+	.object({
+		name: z.string().trim().min(1).max(150),
+		description: z.string().trim().max(1000).optional(),
+		address: z.string().trim().min(5).max(300),
+		latitude: z.coerce.number().min(-90).max(90).optional(),
+		longitude: z.coerce.number().min(-180).max(180).optional(),
+		hourlyPrice: z.coerce.number().min(0).max(999999.99),
+		status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+	})
+	.refine(value => (value.latitude === undefined) === (value.longitude === undefined), {
+		message: 'Latitud y longitud deben enviarse juntas.',
+		path: ['longitude'],
+	});
+
+export const createResourceSchema = resourceFields;
+export const updateResourceSchema = resourceFields.partial().extend({ expectedUpdatedAt: instant });
 
 export const createSlotSchema = z
 	.object({ startsAt: instant, endsAt: instant, publish: z.boolean().optional() })
@@ -80,7 +97,13 @@ export const createBookingSchema = z.object({
 	idempotencyKey: z.string().trim().min(8).max(100),
 });
 
+export const managedBookingsQuerySchema = paginationSchema.extend({
+	status: z.enum(['CONFIRMED', 'CANCELLED']).optional(),
+});
+
 export type CreateResourceBody = z.infer<typeof createResourceSchema>;
+export type UpdateResourceBody = z.infer<typeof updateResourceSchema>;
+export type ManagedBookingsQuery = z.infer<typeof managedBookingsQuerySchema>;
 export type CreateSlotBody = z.infer<typeof createSlotSchema>;
 export type CreateMonthlyScheduleBody = z.infer<typeof createMonthlyScheduleSchema>;
 export type UpdateScheduleDayBody = z.infer<typeof updateScheduleDaySchema>;
