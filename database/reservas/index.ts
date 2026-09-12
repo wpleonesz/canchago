@@ -4,8 +4,10 @@ import { normalizePagination } from '@/helper/pagination';
 import type {
 	AvailabilityQuery,
 	CreateResourceBody,
+	CreateMonthlyScheduleBody,
 	CreateSlotBody,
 	UpdateSlotBody,
+	UpdateScheduleDayBody,
 } from '@/validations/reservas';
 
 const resourceSelect = {
@@ -164,6 +166,69 @@ export const createSlot = async (resourceId: string, userId: string, body: Creat
 		},
 		{ isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
 	);
+
+export const createMonthlySchedule = async (
+	resourceId: string,
+	userId: string,
+	body: CreateMonthlyScheduleBody,
+) =>
+	prisma.$transaction(
+		async transaction => {
+			const intervals = body.slots
+				.map(slot => ({ startsAt: new Date(slot.startsAt), endsAt: new Date(slot.endsAt) }))
+				.sort((left, right) => left.startsAt.getTime() - right.startsAt.getTime());
+			const hasInternalOverlap = intervals.some(
+				(interval, index) => index > 0 && interval.startsAt < intervals[index - 1].endsAt,
+			);
+			if (hasInternalOverlap) return null;
+			const overlap = await transaction.availabilitySlot.findFirst({
+				where: {
+					resourceId,
+					status: { in: ['DRAFT', 'PUBLISHED'] },
+					OR: intervals.map(interval => ({
+						startsAt: { lt: interval.endsAt },
+						endsAt: { gt: interval.startsAt },
+					})),
+				},
+				select: { id: true },
+			});
+			if (overlap) return null;
+			return transaction.availabilitySlot.createMany({
+				data: intervals.map(interval => ({
+					resourceId,
+					createdByUserId: userId,
+					...interval,
+					status: body.publish ? ('PUBLISHED' as const) : ('DRAFT' as const),
+				})),
+			});
+		},
+		{ isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+	);
+
+export const updateScheduleDay = async (resourceId: string, body: UpdateScheduleDayBody) =>
+	prisma.$transaction(async transaction => {
+		const ids = body.slots.map(slot => slot.id);
+		const current = await transaction.availabilitySlot.findMany({
+			where: { id: { in: ids }, resourceId },
+			include: { bookings: { where: { status: 'CONFIRMED' }, select: { id: true } } },
+		});
+		if (current.length !== ids.length) return { kind: 'not-found' as const };
+		const stale = current.some(slot => {
+			const expected = body.slots.find(item => item.id === slot.id);
+			return (
+				!expected || slot.updatedAt.getTime() !== new Date(expected.expectedUpdatedAt).getTime()
+			);
+		});
+		if (stale) return { kind: 'stale' as const };
+		if (current.some(slot => slot.startsAt <= new Date())) return { kind: 'past' as const };
+		if (body.status === 'WITHDRAWN' && current.some(slot => slot.bookings.length > 0))
+			return { kind: 'booked' as const };
+		const result = await transaction.availabilitySlot.updateMany({
+			where: { id: { in: ids }, resourceId },
+			data: { status: body.status },
+		});
+		return { kind: 'updated' as const, count: result.count };
+	});
 
 export const updateSlot = async (resourceId: string, slotId: string, body: UpdateSlotBody) =>
 	prisma.$transaction(

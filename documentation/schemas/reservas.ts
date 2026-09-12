@@ -78,10 +78,24 @@ registry.registerPath({
 });
 registry.registerPath({
 	method: 'patch',
+	path: '/resources/{resourceId}/availability/batch',
+	tags: ['Agendamiento'],
+	security: [{ cookieAuth: [] }],
+	responses: { 200: { description: 'Jornada abierta o cerrada atómicamente' }, ...errors },
+});
+registry.registerPath({
+	method: 'patch',
 	path: '/resources/{resourceId}/availability/{slotId}',
 	tags: ['Agendamiento'],
 	security: [{ cookieAuth: [] }],
 	responses: { 200: { description: 'Franja actualizada, publicada o retirada' }, ...errors },
+});
+registry.registerPath({
+	method: 'post',
+	path: '/resources/{resourceId}/availability/batch',
+	tags: ['Agendamiento'],
+	security: [{ cookieAuth: [] }],
+	responses: { 201: { description: 'Programación mensual creada atómicamente' }, ...errors },
 });
 registry.registerPath({
 	method: 'post',

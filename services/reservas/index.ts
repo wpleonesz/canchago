@@ -5,9 +5,11 @@ import { isAdministrator } from '@/services/users/role-guard';
 import type {
 	AvailabilityQuery,
 	CreateBookingBody,
+	CreateMonthlyScheduleBody,
 	CreateResourceBody,
 	CreateSlotBody,
 	UpdateSlotBody,
+	UpdateScheduleDayBody,
 } from '@/validations/reservas';
 
 export const listResources = repository.listResources;
@@ -61,6 +63,46 @@ export const createSlot = async (resourceId: string, body: CreateSlotBody, user:
 	const slot = await repository.createSlot(resourceId, user.id, body);
 	if (!slot) throw new ConflictError('La franja se solapa con otra disponibilidad de la cancha.');
 	return slot;
+};
+export const createMonthlySchedule = async (
+	resourceId: string,
+	body: CreateMonthlyScheduleBody,
+	user: SessionUser,
+) => {
+	if (!isAdministrator(user) && !(await repository.actorCanManageResource(user.id, resourceId)))
+		throw new AuthorizationError();
+	if (body.slots.some(slot => new Date(slot.startsAt) <= new Date()))
+		throw new ConflictError('Todos los horarios deben comenzar en el futuro.');
+	try {
+		const result = await repository.createMonthlySchedule(resourceId, user.id, body);
+		if (!result) throw new ConflictError('Uno o más horarios se solapan con la agenda existente.');
+		return result;
+	} catch (error) {
+		if (error instanceof ConflictError) throw error;
+		throw new ConflictError('No se pudo guardar el mes porque uno o más horarios ya existen.');
+	}
+};
+export const updateScheduleDay = async (
+	resourceId: string,
+	body: UpdateScheduleDayBody,
+	user: SessionUser,
+) => {
+	if (!isAdministrator(user) && !(await repository.actorCanManageResource(user.id, resourceId)))
+		throw new AuthorizationError();
+	try {
+		const result = await repository.updateScheduleDay(resourceId, body);
+		if (result.kind === 'not-found') throw new NotFoundError('Uno o más horarios no existen.');
+		if (result.kind === 'stale')
+			throw new ConflictError('La jornada cambió; actualiza antes de reintentar.');
+		if (result.kind === 'past')
+			throw new ConflictError('Los horarios pasados ya no pueden cambiarse.');
+		if (result.kind === 'booked')
+			throw new ConflictError('No puedes cerrar una jornada con reservas confirmadas.');
+		return result.count;
+	} catch (error) {
+		if (error instanceof NotFoundError || error instanceof ConflictError) throw error;
+		throw new ConflictError('No se pudo cambiar la jornada porque uno o más horarios se solapan.');
+	}
 };
 export const updateSlot = async (
 	resourceId: string,

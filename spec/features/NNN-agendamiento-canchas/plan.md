@@ -42,7 +42,7 @@ La fuente de verdad de disponibilidad y autorización será siempre backend+base
 19. **T19 · Tipos/validación** — crear DTOs estrictos y Zod solo para validación de entrada/UX; no duplicar disponibilidad.
 20. **T20 · API client** — añadir endpoints en `src/services/api/endpoints/`, incluida propagación de idempotency key.
 21. **T21 · Hooks** — implementar queries/mutations con TanStack Query, paginación, rangos acotados, invalidación focalizada y sin retry automático inseguro de POST.
-22. **T22 · Gestión del Gestor** — selector de recurso, fecha, formulario/listado de franjas, acciones condicionadas y estados completos.
+22. **T22 · Gestión del Gestor** — asistente mensual de tres pasos (cancha/mes → días → bloques), creación masiva atómica, resumen previo y cierre/reapertura de franjas concretas.
 23. **T23 · Reserva del Futbolista** — catálogo, detalle, fecha, franja, resumen, confirmación, 409 con refetch y contexto preservado ante red.
 24. **T24 · Mis reservas** — listado/detalle/cancelación propia con confirmación y estados reales.
 25. **T25 · Navegación/guards/formulario de usuario** — adaptar menú y rutas por permisos, separar módulos del Futbolista y corregir la organización condicional del `UserForm`.
@@ -116,6 +116,7 @@ La fuente de verdad de disponibilidad y autorización será siempre backend+base
 - **Recurso agnóstico como entidad raíz** — deriva de `mission.md`; “cancha” queda en la presentación.
 - **Scope por `UserRole`, no membresía del futbolista** — reutiliza el modelo real y evita una FK usuario→cancha injustificada.
 - **Franja concreta antes que recurrencia compleja** — satisface publicación y reserva con menor riesgo; generación múltiple puede expandirse a franjas concretas dentro de una transacción.
+- **Plantilla mensual sin persistir recurrencia** — la API recibe mes, días y horas, pero persiste franjas UTC concretas; así el siguiente mes puede programarse distinto y cada día puede cerrarse después sin motor recurrente.
 - **Estado ocupado preferentemente derivado** — evita sincronizar dos fuentes de verdad; la decisión final dependerá del modelo de restricción elegido.
 - **Integridad en PostgreSQL** — una comprobación previa de aplicación no elimina carreras. Se preferirá exclusión por rango/recurso o un mecanismo transaccional equivalente probado.
 - **Idempotencia explícita** — deshabilitar el botón no cubre reintentos de red o retransmisión.

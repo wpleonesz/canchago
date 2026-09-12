@@ -95,6 +95,9 @@ Estados mínimos conceptuales: **confirmada** y **cancelada**. No se incorpora p
 - Una franja reservada no puede mover su intervalo, cambiar de recurso ni eliminarse físicamente.
 - Retirar/cancelar una franja reservada requiere cancelar coherentemente la reserva en la misma transacción o rechazarse; la política exacta debe cerrarse antes de implementar y notificarse al usuario.
 - Listados con volumen creciente usan paginación; la consulta por fecha puede limitarse por rango validado.
+- La programación habitual es mensual: el Gestor selecciona un mes, uno o varios días de la semana y uno o varios bloques de hora. El cliente presenta la plantilla como franjas UTC concretas y el backend las valida y persiste en una sola transacción.
+- La operación mensual es todo-o-nada: si cualquier franja resulta inválida, duplicada o solapada, no se crea ninguna.
+- El Gestor puede omitir un día de la plantilla mensual, retirar una franja futura sin reserva y volver a publicar una franja retirada.
 
 ### Consulta y reserva del Futbolista
 
@@ -155,7 +158,8 @@ No se reutilizarán endpoints de organizaciones/sedes para lógica de reserva; s
 
 - Sección de disponibilidad visible solo con permisos efectivos.
 - Selector de cancha cuando el alcance contenga más de una; no se confía en ese selector para autorizar.
-- Selección de fecha, inicio/fin, estado borrador/publicado y listado remoto de franjas.
+- Flujo guiado y minimalista: cancha/mes, días activos y bloques horarios. No se solicitan timestamps ni un rango técnico de inicio/fin.
+- Vista previa del número de jornadas y franjas antes de publicar el mes.
 - Distinción visual accesible entre libre, ocupada y retirada/cancelada, sin depender solo del color.
 - Edición/retiro condicionados por estado y versión; confirmaciones con alertas Ionic.
 - Estados `loading`, `empty`, `error` y `success`, incluidos ausencia de canchas y falta de permisos.

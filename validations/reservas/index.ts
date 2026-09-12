@@ -25,6 +25,26 @@ export const createSlotSchema = z
 		path: ['endsAt'],
 	});
 
+const slotIntervalSchema = z
+	.object({ startsAt: instant, endsAt: instant })
+	.refine(value => new Date(value.startsAt) < new Date(value.endsAt), {
+		message: 'La hora de inicio debe ser anterior a la hora de fin.',
+		path: ['endsAt'],
+	});
+
+export const createMonthlyScheduleSchema = z.object({
+	slots: z.array(slotIntervalSchema).min(1).max(500),
+	publish: z.boolean().optional(),
+});
+
+export const updateScheduleDaySchema = z.object({
+	slots: z
+		.array(z.object({ id: uuid, expectedUpdatedAt: instant }))
+		.min(1)
+		.max(100),
+	status: z.enum(['PUBLISHED', 'WITHDRAWN']),
+});
+
 export const updateSlotSchema = z
 	.object({
 		startsAt: instant.optional(),
@@ -62,6 +82,8 @@ export const createBookingSchema = z.object({
 
 export type CreateResourceBody = z.infer<typeof createResourceSchema>;
 export type CreateSlotBody = z.infer<typeof createSlotSchema>;
+export type CreateMonthlyScheduleBody = z.infer<typeof createMonthlyScheduleSchema>;
+export type UpdateScheduleDayBody = z.infer<typeof updateScheduleDaySchema>;
 export type UpdateSlotBody = z.infer<typeof updateSlotSchema>;
 export type AvailabilityQuery = z.infer<typeof availabilityQuerySchema>;
 export type CreateBookingBody = z.infer<typeof createBookingSchema>;

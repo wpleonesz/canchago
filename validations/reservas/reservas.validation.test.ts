@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { availabilityQuerySchema, createBookingSchema, createSlotSchema } from './index';
+import {
+	availabilityQuerySchema,
+	createBookingSchema,
+	createMonthlyScheduleSchema,
+	createSlotSchema,
+} from './index';
 
 describe('validaciones de agendamiento', () => {
 	it('acepta franjas válidas cualquier día de lunes a domingo', () => {
@@ -42,6 +47,18 @@ describe('validaciones de agendamiento', () => {
 			createBookingSchema.safeParse({
 				availabilitySlotId: '11111111-1111-4111-8111-111111111111',
 				idempotencyKey: 'request-123',
+			}).success,
+		).toBe(true);
+	});
+
+	it('acepta una programación mensual con varias franjas concretas', () => {
+		expect(
+			createMonthlyScheduleSchema.safeParse({
+				publish: true,
+				slots: [
+					{ startsAt: '2026-10-05T13:00:00.000Z', endsAt: '2026-10-05T14:00:00.000Z' },
+					{ startsAt: '2026-10-07T13:00:00.000Z', endsAt: '2026-10-07T14:00:00.000Z' },
+				],
 			}).success,
 		).toBe(true);
 	});
