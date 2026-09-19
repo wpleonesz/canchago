@@ -41,25 +41,21 @@ export const upcomingBookingsSummarySchema = z
 	.object({ horizonDays: z.coerce.number().int().min(1).max(AI_MAX_SUMMARY_DAYS).default(7) })
 	.strict();
 
-export const aiRecommendationsProviderResponseSchema = z
-	.object({
-		explanation: z.string().trim().min(1).max(AI_MAX_OUTPUT_CHARACTERS),
-		recommendations: z
-			.array(
-				z
-					.object({
-						availabilitySlotId: z.string().uuid(),
-						reason: z.string().trim().min(1).max(500),
-					})
-					.strict(),
-			)
-			.max(5),
-	})
-	.strict();
+export const aiRecommendationsProviderResponseSchema = z.object({
+	explanation: z.string().trim().min(1).max(AI_MAX_OUTPUT_CHARACTERS),
+	recommendations: z
+		.array(
+			z.object({
+				availabilitySlotId: z.string().uuid(),
+				reason: z.string().trim().min(1).max(500),
+			}),
+		)
+		.max(5),
+});
 
-export const aiSummaryProviderResponseSchema = z
-	.object({ summary: z.string().trim().min(1).max(AI_MAX_OUTPUT_CHARACTERS) })
-	.strict();
+export const aiSummaryProviderResponseSchema = z.object({
+	summary: z.string().trim().min(1).max(AI_MAX_OUTPUT_CHARACTERS),
+});
 
 export type SlotRecommendationsBody = z.infer<typeof slotRecommendationsSchema>;
 export type UpcomingBookingsSummaryBody = z.infer<typeof upcomingBookingsSummarySchema>;

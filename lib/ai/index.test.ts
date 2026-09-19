@@ -43,6 +43,18 @@ describe('LmStudioProvider', () => {
 		await expect(provider().complete(request)).rejects.toBeInstanceOf(AiProviderUnavailableError);
 	});
 
+	it('does not report a rejected request parameter as a missing model', async () => {
+		const rejected = "{\"error\":\"'response_format.type' must be 'json_schema' or 'text'\"}";
+		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(rejected, { status: 400 })));
+		await expect(provider().complete(request)).rejects.toBeInstanceOf(AiProviderUnavailableError);
+
+		vi.stubGlobal(
+			'fetch',
+			vi.fn().mockResolvedValue(new Response('{"error":"Model not loaded"}', { status: 400 })),
+		);
+		await expect(provider().complete(request)).rejects.toBeInstanceOf(AiModelUnavailableError);
+	});
+
 	it('rejects malformed provider responses', async () => {
 		vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{not-json', { status: 200 })));
 		await expect(provider().complete(request)).rejects.toBeInstanceOf(AiInvalidResponseError);

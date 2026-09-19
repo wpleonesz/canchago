@@ -41,3 +41,25 @@ Internet.
 Las pruebas automatizadas inyectan un `AiProvider` falso y no requieren un modelo. La prueba
 manual con LM Studio es complementaria: ejecuta ambos flujos, detén el servidor y descarga el
 modelo para comprobar los errores 503/504 y la degradación aislada.
+
+## Diagnóstico
+
+| Síntoma | Causa probable |
+|---|---|
+| `503 AI_MODEL_UNAVAILABLE` | Modelo no cargado o `AI_LM_STUDIO_MODEL` no coincide con el id de `GET /v1/models`. |
+| `503 AI_PROVIDER_UNAVAILABLE` | Servidor apagado, URL errónea o el proveedor rechazó la solicitud; revisa el log `AI provider rejected the request` (estado y error). |
+| `504 AI_PROVIDER_TIMEOUT` | Carga del modelo o generación más lenta que `AI_PROVIDER_TIMEOUT_MS` (la primera solicitud con carga JIT tarda ~40 s con un modelo de 20B). |
+| `502 AI_INVALID_RESPONSE` | El modelo no devolvió el JSON esperado o referenció IDs ajenos; los bloques ```` ```json ```` se toleran. |
+
+Verificación rápida: `lms status`, `curl <URL>/v1/models` y una llamada a `/v1/chat/completions` con el modelo configurado.
+
+## Evitar la primera solicitud lenta
+
+Si el modelo no está cargado, LM Studio lo carga bajo demanda (JIT) con un TTL de 1 h y la primera solicitud tarda ~40 s. Para dejarlo residente y sin TTL:
+
+```bash
+lms load <AI_LM_STUDIO_MODEL> --identifier <AI_LM_STUDIO_MODEL> -y
+lms ps   # la columna TTL debe quedar vacía
+```
+
+Debe repetirse tras reiniciar LM Studio o el equipo.

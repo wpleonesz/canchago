@@ -67,6 +67,20 @@ describe('AI services', () => {
 		);
 	});
 
+	it('accepts JSON wrapped in a code fence and ignores unknown keys from the model', async () => {
+		vi.mocked(repository.listAvailableCandidates).mockResolvedValue([candidate]);
+		const body = JSON.stringify({
+			explanation: 'Una opción.',
+			recommendations: [{ availabilitySlotId: slotId, reason: 'Buen horario.', score: 9 }],
+		});
+		const provider: AiProvider = {
+			complete: vi.fn().mockResolvedValue('```json\n' + body + '\n```'),
+		};
+		const result = await recommendSlots(input, provider);
+		expect(result.recommendations).toHaveLength(1);
+		expect(result.recommendations[0]).not.toHaveProperty('score');
+	});
+
 	it('rejects references outside the authorized candidate set', async () => {
 		vi.mocked(repository.listAvailableCandidates).mockResolvedValue([candidate]);
 		const provider: AiProvider = {

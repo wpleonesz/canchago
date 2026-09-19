@@ -8,6 +8,7 @@ import {
 	TooManyRequestsError,
 } from '@/errors';
 import { env } from '@/lib/config/env';
+import { logger } from '@/lib/logger';
 
 export interface AiCompletionRequest {
 	systemInstruction: string;
@@ -48,7 +49,8 @@ export class LmStudioProvider implements AiProvider {
 				body: JSON.stringify({
 					model: this.config.model,
 					temperature: 0.2,
-					max_tokens: 700,
+					// Los modelos con razonamiento (p. ej. gpt-oss) gastan tokens pensando antes de responder.
+					max_tokens: 1500,
 					// 'json_object' no lo soportan todos los servidores compatibles con OpenAI — LM
 					// Studio (probado 2026-09-12, openai/gpt-oss-20b) responde 400 "'response_format.type'
 					// must be 'json_schema' or 'text'". 'text' sí es universal; la instrucción de sistema ya
@@ -61,10 +63,19 @@ export class LmStudioProvider implements AiProvider {
 				}),
 				signal: controller.signal,
 			});
-			if (response.status === 404 || response.status === 400) throw new AiModelUnavailableError();
 			if (response.status === 429)
 				throw new TooManyRequestsError('El asistente está ocupado. Intenta de nuevo más tarde.');
-			if (!response.ok) throw new AiProviderUnavailableError();
+			if (!response.ok) {
+				const errorBody = (await response.text().catch(() => '')).slice(0, 200);
+				// Un 400 por parámetros rechazados no es un modelo ausente: distinguirlo evita diagnósticos falsos.
+				logger.warn(
+					{ provider: 'lm-studio', status: response.status, providerError: errorBody },
+					'AI provider rejected the request',
+				);
+				if (response.status === 404 || (response.status === 400 && /model/i.test(errorBody)))
+					throw new AiModelUnavailableError();
+				throw new AiProviderUnavailableError();
+			}
 			const rawResponse = await response.text();
 			if (rawResponse.length > 50_000) throw new AiInvalidResponseError();
 			let responseBody: unknown;

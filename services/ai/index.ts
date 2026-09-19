@@ -9,9 +9,15 @@ import {
 } from '@/validations/ai';
 import type { SlotRecommendationsBody, UpcomingBookingsSummaryBody } from '@/validations/ai';
 
+// Los modelos locales suelen envolver el JSON en ```json ... ``` aunque se les pida solo JSON.
+const extractJson = (content: string): string => {
+	const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
+	return (fenced ? fenced[1] : content).trim();
+};
+
 const parseJson = (content: string): unknown => {
 	try {
-		return JSON.parse(content);
+		return JSON.parse(extractJson(content));
 	} catch {
 		throw new AiInvalidResponseError();
 	}

@@ -95,13 +95,21 @@ _Debe completarse en paralelo con los endpoints, no como paso final._
 
 - [x] Ejecutar pruebas backend focalizadas sin LM Studio.
 - [x] Ejecutar pruebas Ionic focalizadas sin LM Studio.
-- [ ] Ejecutar opcionalmente ambos flujos con LM Studio real y datos autorizados (no había un modelo cargado durante la implementación).
-- [ ] Descargar un modelo durante una solicitud para verificar manualmente la degradación (cubierta automáticamente con fakes).
+- [x] Ejecutar opcionalmente ambos flujos con LM Studio real (2026-09-18, `openai/gpt-oss-20b`; servicio real, base de datos simulada). Falta solo un recorrido HTTP con sesión real desde Ionic.
+- [ ] Descargar un modelo durante una solicitud para verificar manualmente la degradación (cubierta automáticamente con fakes; optativa).
 - [x] Verificar que Ionic nunca intenta alcanzar LM Studio desde navegador, emulador o dispositivo.
 - [x] Ejecutar en `canchago`: `yarn lint && yarn typecheck && yarn test && yarn build`.
 - [x] Ejecutar en `canchago-ionic`: `yarn lint && yarn typecheck && yarn test && yarn build`.
 - [x] Comparar cualquier fallo con la línea base y documentar solo deudas preexistentes reproducidas.
 - [x] Validar uno a uno todos los criterios de aceptación de `spec.md`.
+
+## Corrección posterior (2026-09-18)
+
+- [x] Diagnosticar el fallo real contra LM Studio: `response_format: json_object` → 400.
+- [x] Dejar de mapear cualquier `400` a `AI_MODEL_UNAVAILABLE`; registrar `warn` técnico del rechazo del proveedor.
+- [x] Extraer JSON de bloques de código en el servicio y tolerar claves extra del modelo en los esquemas de respuesta externa.
+- [x] Subir `max_tokens` a 1500 para modelos con razonamiento.
+- [x] Tests de regresión en `lib/ai/index.test.ts` y `services/ai/index.test.ts`.
 
 ## Cierre
 

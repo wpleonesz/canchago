@@ -4,6 +4,17 @@
 
 **Verificación del entorno local (2026-09-12):** LM Studio confirmó su servidor compatible en la URL mostrada por su CLI, `GET /v1/models` respondió `200` y `POST /v1/chat/completions` respondió el error esperado de “modelo no cargado”. El servidor se detuvo al terminar. No se cargó un modelo de varios GB; la ejecución generativa real permanece como prueba manual optativa y toda la suite automatizada usa un proveedor falso.
 
+**Verificación generativa real (2026-09-18):** con LM Studio en el puerto configurado y `openai/gpt-oss-20b` (carga JIT en la primera solicitud, ~40 s; luego 3–10 s por solicitud), ambos casos de uso completan el recorrido servicio → adaptador → modelo real → validación Zod → filtro contra candidatos. La prueba usó el servicio real con la capa `database/ai` simulada.
+
+## Incidente: por qué no funcionaba
+
+1. **Causa raíz.** El adaptador enviaba `response_format: { type: 'json_object' }`. LM Studio solo acepta `json_schema` o `text` y respondía `400 "'response_format.type' must be 'json_schema' or 'text'"`. Corregido en `878971b` usando `text` (el JSON lo exige la instrucción de sistema y se valida con Zod).
+2. **Diagnóstico engañoso.** El adaptador traducía *cualquier* `400` a `503 AI_MODEL_UNAVAILABLE`, de modo que un parámetro rechazado se veía como “modelo no cargado”. Ahora solo `404`, o un `400` cuyo cuerpo menciona el modelo, produce `AI_MODEL_UNAVAILABLE`; el resto de errores del proveedor produce `AI_PROVIDER_UNAVAILABLE` y registra un `warn` técnico (estado + error del proveedor truncado; nunca prompt ni respuesta generada).
+3. **Fragilidad ante modelos locales.** (a) Muchos modelos envuelven el JSON en ```` ```json ````: el servicio ahora extrae el bloque antes de `JSON.parse`. (b) Los esquemas de respuesta del proveedor eran `.strict()`, así que una clave extra (`score`, etc.) invalidaba toda la respuesta; ahora se ignoran las claves desconocidas y solo se usan los campos conocidos. (c) `max_tokens` subió de 700 a 1500 porque los modelos con razonamiento consumen tokens pensando antes de emitir el contenido.
+4. **Timeout del cliente Ionic.** `apiClient` corta a `VITE_API_TIMEOUT_MS` (15 s). Una generación de 15.4 s terminó con `200` en el backend, pero Axios ya había abortado y la app mostró “El asistente no está disponible”. Las dos llamadas de IA usan ahora un timeout propio (`AI_REQUEST_TIMEOUT_MS` = 130 s en `canchago-ionic/src/services/api/endpoints/ai.ts`), mayor que el máximo de `AI_PROVIDER_TIMEOUT_MS` (120 s), de modo que el `504` del backend llega antes que un corte del cliente.
+
+Nota de red: `openai/gpt-oss-20b` no estaba cargado al iniciar; si la carga JIT está desactivada en LM Studio, la primera solicitud devolverá error de modelo no cargado hasta cargarlo manualmente. Con `AI_PROVIDER_TIMEOUT_MS=90000` la carga JIT cabe dentro del timeout.
+
 ## Qué hace
 
 Incorpora en Canchago una capacidad de asistencia de lenguaje respaldada inicialmente por un modelo local servido por LM Studio. La aplicación móvil nunca se conecta a LM Studio: envía solicitudes acotadas al backend de Canchago, el backend obtiene primero los datos autorizados desde PostgreSQL, construye un contexto mínimo, consulta al proveedor, normaliza la salida y devuelve una respuesta segura y tipada.
